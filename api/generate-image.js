@@ -22,14 +22,12 @@ export default async function handler(req, res) {
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        prompt: prompt,
-        negative_prompt: "nsfw, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, incoherent, distorted proportions, disfigured face",
-        seed: Math.floor(Math.random() * 100000),
+        prompt,
+        negative_prompt: "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry",
         mode: "text-to-image",
-        aspect_ratio: "1:1",
+        seed: Math.floor(Math.random() * 100000),
         output_format: "jpeg",
-        steps: 50,
-        cfg_scale: 7
+        aspect_ratio: "1:1"
       })
     };
 
