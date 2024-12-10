@@ -22,17 +22,11 @@ export default async function handler(req, res) {
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        text_prompts: [
-          {
-            text: prompt,
-            weight: 1.0
-          }
-        ],
-        cfg_scale: 7,
+        prompt: prompt,
+        size: 1024,
         steps: 50,
-        seed: Math.floor(Math.random() * 100000),
-        style_preset: "anime",
-        samples: 1
+        cfg_scale: 7,
+        style: "anime"
       })
     };
 
@@ -44,15 +38,10 @@ export default async function handler(req, res) {
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     console.log('Raw response from Bedrock:', responseBody);
 
-    if (!responseBody.result || !responseBody.result.length) {
-      throw new Error('No image generated');
-    }
-
-    const base64Image = responseBody.result[0];
-    
+    // 画像データを直接返す
     res.status(200).json({ 
       success: true, 
-      data: base64Image
+      data: responseBody.image
     });
   } catch (error) {
     console.error('Detailed error:', error);
