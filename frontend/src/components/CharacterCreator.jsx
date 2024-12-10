@@ -33,43 +33,6 @@ const CharacterCreator = () => {
     できるだけ具体的に、物語に組み込みやすい形で設定を作成してください。`;
   };
 
-  const translateAppearance = (description) => {
-    const appearance = description.toLowerCase();
-    const features = [];
-    
-    // 髪の色
-    if (appearance.includes('ピンク')) features.push('pink hair');
-    if (appearance.includes('赤')) features.push('red hair');
-    if (appearance.includes('金')) features.push('blonde hair');
-    if (appearance.includes('銀')) features.push('silver hair');
-    if (appearance.includes('青')) features.push('blue hair');
-    if (appearance.includes('緑')) features.push('green hair');
-    if (appearance.includes('茶')) features.push('brown hair');
-    if (appearance.includes('黒')) features.push('black hair');
-    if (!features.some(f => f.includes('hair'))) features.push('black hair');
-
-    // 髪型
-    if (appearance.includes('ロング')) features.push('long hair');
-    if (appearance.includes('ショート')) features.push('short hair');
-    if (appearance.includes('ツインテール')) features.push('twin tails');
-    if (appearance.includes('ポニーテール')) features.push('ponytail');
-    if (appearance.includes('三つ編み')) features.push('braid');
-    if (appearance.includes('お団子')) features.push('hair bun');
-
-    // その他の特徴
-    if (appearance.includes('メガネ')) features.push('glasses');
-    if (appearance.includes('制服')) features.push('school uniform');
-    if (appearance.includes('ドレス')) features.push('dress');
-    if (appearance.includes('リボン')) features.push('ribbon');
-    if (appearance.includes('赤い目')) features.push('red eyes');
-    if (appearance.includes('青い目')) features.push('blue eyes');
-    if (appearance.includes('緑の目')) features.push('green eyes');
-    if (appearance.includes('茶色い目')) features.push('brown eyes');
-    if (appearance.includes('紫の目')) features.push('purple eyes');
-
-    return features;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -111,8 +74,10 @@ const CharacterCreator = () => {
     setError(null);
 
     try {
-      const features = translateAppearance(generatedCharacter.description);
-      const imagePrompt = `best quality masterpiece, ultra high res, beautiful anime girl character design, ${features.join(', ')}, expressive eyes, detailed shading, dynamic lighting, trending on artstation`;
+      // キャラクター設定全体をプロンプトとして使用
+      const imagePrompt = `${generatedCharacter.generatedContent}, best quality masterpiece, ultra high res, beautiful anime girl character design, expressive eyes, detailed shading, dynamic lighting, trending on artstation`;
+
+      console.log('Image generation prompt:', imagePrompt);
 
       const imageResponse = await axios.post(`${API_URL}/generate-image`, {
         prompt: imagePrompt
