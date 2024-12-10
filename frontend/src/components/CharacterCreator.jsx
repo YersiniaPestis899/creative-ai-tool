@@ -36,6 +36,10 @@ const CharacterCreator = () => {
     return `portrait of ${character.name}, ${character.description}, digital art, highly detailed, realistic, best quality, detailed face, artstation quality, beautiful, ultra detailed`;
   };
 
+  const handleImageClick = (imageUrl) => {
+    window.open(imageUrl, '_blank');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -148,11 +152,19 @@ const CharacterCreator = () => {
           <h2 className="text-2xl font-bold">{generatedCharacter.name}</h2>
           
           {generatedCharacter.imageUrl && (
-            <img
-              src={generatedCharacter.imageUrl}
-              alt={generatedCharacter.name}
-              className="w-full max-h-96 object-cover rounded-lg"
-            />
+            <div className="space-y-2">
+              <div className="relative w-full h-96">
+                <img
+                  src={generatedCharacter.imageUrl}
+                  alt={generatedCharacter.name}
+                  className="absolute inset-0 w-full h-full object-contain cursor-pointer"
+                  onClick={() => handleImageClick(generatedCharacter.imageUrl)}
+                />
+              </div>
+              <p className="text-sm text-gray-500 text-center">
+                画像をクリックすると新しいタブで開きます
+              </p>
+            </div>
           )}
 
           <div>
