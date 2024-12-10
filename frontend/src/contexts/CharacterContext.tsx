@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Character } from '../types/character';
+
+interface Character {
+  id: string;
+  name: string;
+  description: string;
+  prompt: string;
+  generatedContent: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface CharacterContextType {
   characters: Character[];
@@ -28,6 +38,7 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    console.log('Adding new character:', newCharacter);
     setCharacters(prev => [...prev, newCharacter]);
   };
 
@@ -54,7 +65,7 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       value={{ characters, addCharacter, updateCharacter, deleteCharacter, getCharacter }}
     >
       {children}
-    </CharacterContext.Provider>
+    </CharacterProvider>
   );
 };
 

@@ -14,7 +14,7 @@ const CharacterCreator = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const generateCharacterPrompt = (fields) => {
+  const generateCharacterPrompt = () => {
     const template = selectedTemplate 
       ? characterTemplates.find(t => t.id === selectedTemplate)?.template 
       : '';
@@ -45,15 +45,12 @@ const CharacterCreator = () => {
     setError(null);
 
     try {
-      console.log('Generating character with prompt:', generateCharacterPrompt());
-      
       // キャラクター設定の生成
+      console.log('Generating character...');
       const characterResponse = await axios.post(`${API_URL}/generate`, {
         prompt: generateCharacterPrompt(),
         type: 'character'
       });
-
-      console.log('Character generation response:', characterResponse);
 
       if (!characterResponse.data.success) {
         throw new Error('キャラクター生成に失敗しました');
@@ -62,26 +59,23 @@ const CharacterCreator = () => {
       const generatedContent = characterResponse.data.data;
       console.log('Generated content:', generatedContent);
 
-      // 生成された設定から名前と説明を抽出（最初の2行を使用）
+      // 生成された設定から名前と説明を抽出
       const lines = generatedContent.split('\n').filter(line => line.trim());
-      const name = lines[0]?.replace(/^[^：:]*[：:]\s*/, '') || '名前未設定';
-      const description = lines[1]?.replace(/^[^：:]*[：:]\s*/, '') || '説明なし';
+      const name = lines.find(line => line.includes('名前'))?.split('：')[1]?.trim() || '名前未設定';
+      const description = lines.find(line => line.includes('外見'))?.split('：')[1]?.trim() || '説明なし';
 
       console.log('Extracted name and description:', { name, description });
 
       // 画像生成
-      console.log('Generating image with prompt:', generateImagePrompt({ name, description }));
+      console.log('Generating image...');
       const imageResponse = await axios.post(`${API_URL}/generate-image`, {
         prompt: generateImagePrompt({ name, description })
       });
 
-      console.log('Image generation response:', imageResponse);
-
-      // キャラクター情報の保存
       const newCharacter = {
         name,
         description,
-        prompt,
+        prompt: generateCharacterPrompt(),
         generatedContent,
         imageUrl: imageResponse.data.success ? imageResponse.data.data : null
       };
@@ -90,12 +84,8 @@ const CharacterCreator = () => {
       addCharacter(newCharacter);
       navigate('/characters');
     } catch (error) {
-      console.error('詳細なエラー情報:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      setError(`エラーが発生しました: ${error.response?.data?.error || error.message}`);
+      console.error('Error:', error);
+      setError(error.response?.data?.error || error.message);
     } finally {
       setIsLoading(false);
     }
