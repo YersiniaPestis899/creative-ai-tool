@@ -11,6 +11,7 @@ const CharacterDetail = () => {
   const { getCharacter, updateCharacter } = useCharacter();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [character, setCharacter] = useState(getCharacter(id || ''));
   const [editedData, setEditedData] = useState({
     name: character?.name || '',
@@ -23,6 +24,35 @@ const CharacterDetail = () => {
       navigate('/characters');
     }
   }, [character, navigate]);
+
+  const handleGenerateImage = async () => {
+    if (!character) return;
+    setIsGeneratingImage(true);
+
+    try {
+      const imagePrompt = `キャラクターイラスト、${character.name}、${character.description}、高品質、detailed、best quality`;
+      const response = await axios.post(`${API_URL}/generate-image`, {
+        prompt: imagePrompt
+      });
+
+      if (response.data.success) {
+        updateCharacter(id || '', {
+          imageUrl: response.data.data
+        });
+        
+        // ローカルのステートも更新
+        setCharacter(prev => prev ? {
+          ...prev,
+          imageUrl: response.data.data
+        } : null);
+      }
+    } catch (error) {
+      console.error('画像生成エラー:', error);
+      alert('画像の生成中にエラーが発生しました。もう一度お試しください。');
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +78,12 @@ const CharacterDetail = () => {
       }
 
       setIsEditing(false);
+      
+      // ローカルのステートも更新
+      setCharacter(getCharacter(id || ''));
     } catch (error) {
       console.error('キャラクター更新エラー:', error);
+      alert('キャラクターの更新中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
@@ -120,21 +154,39 @@ const CharacterDetail = () => {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-2xl font-bold">{character.name}</h1>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-4 py-2 text-sm font-medium text-indigo-600 bg-white border border-indigo-600 rounded-md hover:bg-indigo-50"
-            >
-              編集
-            </button>
+            <div className="space-x-2">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 text-sm font-medium text-indigo-600 bg-white border border-indigo-600 rounded-md hover:bg-indigo-50"
+              >
+                編集
+              </button>
+              <button
+                onClick={handleGenerateImage}
+                disabled={isGeneratingImage}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              >
+                {isGeneratingImage ? '画像生成中...' : 'イラストを生成'}
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
             {character.imageUrl && (
-              <img
-                src={character.imageUrl}
-                alt={character.name}
-                className="w-full max-h-96 object-cover rounded-lg mb-4"
-              />
+              <div className="relative">
+                <img
+                  src={character.imageUrl}
+                  alt={character.name}
+                  className="w-full max-h-96 object-cover rounded-lg mb-4"
+                />
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                  className="absolute bottom-6 right-2 px-4 py-2 text-sm font-medium text-white bg-black bg-opacity-50 rounded-md hover:bg-opacity-70"
+                >
+                  {isGeneratingImage ? '生成中...' : '再生成'}
+                </button>
+              </div>
             )}
 
             <div>

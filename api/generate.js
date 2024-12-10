@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 200,
+        max_tokens: 200000,
         top_k: 250,
         stop_sequences: [],
         temperature: 1,
