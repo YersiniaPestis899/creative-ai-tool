@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useCharacter } from '../contexts/CharacterContext';
 import { characterTemplates } from '../data/characterTemplates';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const CharacterCreator = () => {
-  const navigate = useNavigate();
-  const { addCharacter } = useCharacter();
   const [prompt, setPrompt] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [generatedCharacter, setGeneratedCharacter] = useState(null);
 
   const generateCharacterPrompt = () => {
     const template = selectedTemplate 
@@ -46,7 +43,6 @@ const CharacterCreator = () => {
 
     try {
       // キャラクター設定の生成
-      console.log('Generating character...');
       const characterResponse = await axios.post(`${API_URL}/generate`, {
         prompt: generateCharacterPrompt(),
         type: 'character'
@@ -57,32 +53,24 @@ const CharacterCreator = () => {
       }
 
       const generatedContent = characterResponse.data.data;
-      console.log('Generated content:', generatedContent);
 
       // 生成された設定から名前と説明を抽出
       const lines = generatedContent.split('\n').filter(line => line.trim());
       const name = lines.find(line => line.includes('名前'))?.split('：')[1]?.trim() || '名前未設定';
       const description = lines.find(line => line.includes('外見'))?.split('：')[1]?.trim() || '説明なし';
 
-      console.log('Extracted name and description:', { name, description });
-
       // 画像生成
-      console.log('Generating image...');
       const imageResponse = await axios.post(`${API_URL}/generate-image`, {
         prompt: generateImagePrompt({ name, description })
       });
 
-      const newCharacter = {
+      setGeneratedCharacter({
         name,
         description,
-        prompt: generateCharacterPrompt(),
         generatedContent,
         imageUrl: imageResponse.data.success ? imageResponse.data.data : null
-      };
+      });
 
-      console.log('Saving character:', newCharacter);
-      addCharacter(newCharacter);
-      navigate('/characters');
     } catch (error) {
       console.error('Error:', error);
       setError(error.response?.data?.error || error.message);
@@ -154,6 +142,25 @@ const CharacterCreator = () => {
           </div>
         )}
       </form>
+
+      {generatedCharacter && (
+        <div className="mt-8 bg-white rounded-lg shadow-md p-6 space-y-4">
+          <h2 className="text-2xl font-bold">{generatedCharacter.name}</h2>
+          
+          {generatedCharacter.imageUrl && (
+            <img
+              src={generatedCharacter.imageUrl}
+              alt={generatedCharacter.name}
+              className="w-full max-h-96 object-cover rounded-lg"
+            />
+          )}
+
+          <div>
+            <h3 className="text-lg font-semibold mb-2">キャラクター設定</h3>
+            <p className="whitespace-pre-wrap">{generatedCharacter.generatedContent}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
