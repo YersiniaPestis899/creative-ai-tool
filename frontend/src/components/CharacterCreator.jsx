@@ -75,11 +75,14 @@ const CharacterCreator = () => {
         throw new Error('画像生成に失敗しました');
       }
 
+      // Base64画像データをデータURLに変換
+      const imageDataUrl = `data:image/jpeg;base64,${imageResponse.data.data}`;
+
       setGeneratedCharacter({
         name,
         description,
         generatedContent,
-        imageUrl: imageResponse.data.data
+        imageUrl: imageDataUrl
       });
 
     } catch (error) {
