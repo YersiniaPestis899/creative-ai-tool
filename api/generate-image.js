@@ -17,21 +17,14 @@ export default async function handler(req, res) {
     const { prompt } = req.body;
 
     const input = {
-      modelId: "stability.stable-diffusion-xl",
+      modelId: "stability.sd3-large-v1:0",
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        text_prompts: [
-          {
-            text: prompt,
-            weight: 1.0
-          }
-        ],
-        cfg_scale: 7,
-        seed: Math.floor(Math.random() * 100000),
-        steps: 50,
-        width: 512,
-        height: 512
+        prompt: prompt,
+        mode: "text-to-image",
+        aspect_ratio: "1:1",
+        output_format: "jpeg"
       })
     };
 
@@ -42,8 +35,8 @@ export default async function handler(req, res) {
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     
     // Convert the base64 image to a data URL
-    const imageBase64 = responseBody.artifacts[0].base64;
-    const imageUrl = `data:image/png;base64,${imageBase64}`;
+    const imageBase64 = responseBody.image;
+    const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
     
     res.status(200).json({ 
       success: true, 
