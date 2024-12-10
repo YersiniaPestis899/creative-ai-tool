@@ -23,8 +23,8 @@ app.post('/api/generate', async (req, res) => {
     const { prompt, type } = req.body;
     
     const message = await anthropic.messages.create({
-      model: "claude-3-sonnet-20240229",
-      max_tokens: 1024,
+      model: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      max_tokens: 200000,
       messages: [
         {
           role: "user",
