@@ -36,10 +36,6 @@ const CharacterCreator = () => {
     return `portrait of ${character.name}, ${character.description}, digital art, highly detailed, realistic, best quality, detailed face, artstation quality, beautiful, ultra detailed`;
   };
 
-  const handleImageClick = (imageUrl) => {
-    window.open(imageUrl, '_blank');
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -47,6 +43,7 @@ const CharacterCreator = () => {
 
     try {
       // キャラクター設定の生成
+      console.log('Generating character...');
       const characterResponse = await axios.post(`${API_URL}/generate`, {
         prompt: generateCharacterPrompt(),
         type: 'character'
@@ -57,22 +54,35 @@ const CharacterCreator = () => {
       }
 
       const generatedContent = characterResponse.data.data;
+      console.log('Generated content:', generatedContent);
 
       // 生成された設定から名前と説明を抽出
       const lines = generatedContent.split('\n').filter(line => line.trim());
       const name = lines.find(line => line.includes('名前'))?.split('：')[1]?.trim() || '名前未設定';
       const description = lines.find(line => line.includes('外見'))?.split('：')[1]?.trim() || '説明なし';
 
+      console.log('Extracted name and description:', { name, description });
+
       // 画像生成
+      console.log('Generating image...');
       const imageResponse = await axios.post(`${API_URL}/generate-image`, {
         prompt: generateImagePrompt({ name, description })
       });
+
+      console.log('Image generation response:', imageResponse.data);
+
+      if (!imageResponse.data.success) {
+        throw new Error('画像生成に失敗しました');
+      }
+
+      const imageUrl = `data:image/jpeg;base64,${imageResponse.data.data}`;
+      console.log('Image URL created');
 
       setGeneratedCharacter({
         name,
         description,
         generatedContent,
-        imageUrl: imageResponse.data.success ? imageResponse.data.data : null
+        imageUrl
       });
 
     } catch (error) {
@@ -80,6 +90,38 @@ const CharacterCreator = () => {
       setError(error.response?.data?.error || error.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openImageInNewTab = (base64Url) => {
+    const newTab = window.open();
+    if (newTab) {
+      newTab.document.write(`
+        <html>
+          <head>
+            <title>Generated Character Image</title>
+            <style>
+              body {
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                background: #f0f0f0;
+              }
+              img {
+                max-width: 100%;
+                max-height: 100vh;
+                object-fit: contain;
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${base64Url}" alt="Generated Character">
+          </body>
+        </html>
+      `);
+      newTab.document.close();
     }
   };
 
@@ -153,12 +195,12 @@ const CharacterCreator = () => {
           
           {generatedCharacter.imageUrl && (
             <div className="space-y-2">
-              <div className="relative w-full h-96">
+              <div className="relative w-full h-[512px]">
                 <img
                   src={generatedCharacter.imageUrl}
                   alt={generatedCharacter.name}
-                  className="absolute inset-0 w-full h-full object-contain cursor-pointer"
-                  onClick={() => handleImageClick(generatedCharacter.imageUrl)}
+                  className="absolute inset-0 w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => openImageInNewTab(generatedCharacter.imageUrl)}
                 />
               </div>
               <p className="text-sm text-gray-500 text-center">

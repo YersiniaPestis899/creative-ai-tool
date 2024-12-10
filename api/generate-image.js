@@ -14,6 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Received image generation request:', req.body);
     const { prompt } = req.body;
 
     const input = {
@@ -21,29 +22,39 @@ export default async function handler(req, res) {
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        prompt: prompt,
+        prompt,
         mode: "text-to-image",
         aspect_ratio: "1:1",
         output_format: "jpeg"
       })
     };
 
+    console.log('Sending request to Bedrock:', input);
     const command = new InvokeModelCommand(input);
     const response = await client.send(command);
     
     // Parse the response
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    console.log('Received response from Bedrock:', {
+      success: responseBody.artifacts !== undefined,
+      hasImage: responseBody.artifacts && responseBody.artifacts.length > 0,
+      firstArtifact: responseBody.artifacts && responseBody.artifacts[0]
+    });
+
+    // SD3のレスポンスから正しくbase64データを取得
+    const base64Image = responseBody.artifacts[0]?.base64;
     
-    // Convert the base64 image to a data URL
-    const imageBase64 = responseBody.image;
-    const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
-    
+    if (!base64Image) {
+      throw new Error('No image data in response');
+    }
+
+    // Base64データを直接返す（data:image/jpeg;base64, プレフィックスなし）
     res.status(200).json({ 
       success: true, 
-      data: imageUrl
+      data: base64Image
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Detailed error:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
