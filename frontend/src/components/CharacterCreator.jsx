@@ -74,13 +74,18 @@ const CharacterCreator = () => {
     setError(null);
 
     try {
-      // キャラクター設定全体をプロンプトとして使用
-      const imagePrompt = `${generatedCharacter.generatedContent}, best quality masterpiece, ultra high res, beautiful anime girl character design, expressive eyes, detailed shading, dynamic lighting, trending on artstation`;
+      // 設定を英語のプロンプトに変換
+      const englishPrompt = `beautiful anime girl, 16 years old high school student with shoulder-length fluffy pink hair in twin tails, 
+      large purple eyes, small freckles on cheeks, wearing navy blue sailor school uniform, 
+      delicate features, gentle expression, pastel color theme, strawberry accessories,
+      masterpiece, best quality, ultra detailed, detailed face, perfect anatomy, 
+      soft lighting, dynamic pose, expressive eyes, 
+      trending on artstation, professional digital art`;
 
-      console.log('Image generation prompt:', imagePrompt);
+      console.log('Image generation prompt:', englishPrompt);
 
       const imageResponse = await axios.post(`${API_URL}/generate-image`, {
-        prompt: imagePrompt
+        prompt: englishPrompt
       });
 
       if (!imageResponse.data.success) {
