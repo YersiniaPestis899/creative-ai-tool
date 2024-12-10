@@ -22,10 +22,17 @@ export default async function handler(req, res) {
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify({
-        prompt,
-        mode: "text-to-image",
-        aspect_ratio: "1:1",
-        output_format: "jpeg"
+        text_prompts: [
+          {
+            text: prompt,
+            weight: 1.0
+          }
+        ],
+        cfg_scale: 7,
+        steps: 50,
+        seed: Math.floor(Math.random() * 100000),
+        style_preset: "anime",
+        samples: 1
       })
     };
 
@@ -35,20 +42,14 @@ export default async function handler(req, res) {
     
     // Parse the response
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    console.log('Received response from Bedrock:', {
-      success: responseBody.artifacts !== undefined,
-      hasImage: responseBody.artifacts && responseBody.artifacts.length > 0,
-      firstArtifact: responseBody.artifacts && responseBody.artifacts[0]
-    });
+    console.log('Raw response from Bedrock:', responseBody);
 
-    // SD3のレスポンスから正しくbase64データを取得
-    const base64Image = responseBody.artifacts[0]?.base64;
-    
-    if (!base64Image) {
-      throw new Error('No image data in response');
+    if (!responseBody.result || !responseBody.result.length) {
+      throw new Error('No image generated');
     }
 
-    // Base64データを直接返す（data:image/jpeg;base64, プレフィックスなし）
+    const base64Image = responseBody.result[0];
+    
     res.status(200).json({ 
       success: true, 
       data: base64Image
