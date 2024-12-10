@@ -39,14 +39,14 @@ export default async function handler(req, res) {
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     console.log('Raw response from Bedrock:', responseBody);
 
-    if (!responseBody.result) {
+    if (!responseBody.images || responseBody.images.length === 0) {
       throw new Error('No image generated');
     }
 
-    // 結果を返す
+    // 最初の画像を返す
     res.status(200).json({ 
       success: true, 
-      data: responseBody.result
+      data: responseBody.images[0]
     });
   } catch (error) {
     console.error('Detailed error:', error);
