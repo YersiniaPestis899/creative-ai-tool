@@ -23,10 +23,11 @@ export default async function handler(req, res) {
       accept: "application/json",
       body: JSON.stringify({
         prompt: prompt,
-        size: 1024,
-        steps: 50,
-        cfg_scale: 7,
-        style: "anime"
+        negative_prompt: "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry",
+        seed: Math.floor(Math.random() * 100000),
+        mode: "text-to-image",
+        aspect_ratio: "1:1",
+        output_format: "jpeg"
       })
     };
 
@@ -38,10 +39,14 @@ export default async function handler(req, res) {
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     console.log('Raw response from Bedrock:', responseBody);
 
-    // 画像データを直接返す
+    if (!responseBody.result) {
+      throw new Error('No image generated');
+    }
+
+    // 結果を返す
     res.status(200).json({ 
       success: true, 
-      data: responseBody.image
+      data: responseBody.result
     });
   } catch (error) {
     console.error('Detailed error:', error);
