@@ -9,8 +9,8 @@ const Navigation = () => {
   };
 
   const navItems = [
-    { path: '/', label: 'Story Generator' },
-    { path: '/characters', label: 'Character Creator' }
+    { path: '/', label: 'ストーリー作成' },
+    { path: '/characters', label: 'キャラクター作成' }
   ];
 
   return (
@@ -19,7 +19,7 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0">
             <Link to="/" className="text-xl font-bold text-indigo-600">
-              Creative AI Tool
+              AI創作支援ツール
             </Link>
           </div>
           

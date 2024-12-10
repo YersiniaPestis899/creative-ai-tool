@@ -23,11 +23,11 @@ const StoryGenerator = () => {
       if (response.data.success) {
         setGeneratedStory(response.data.data);
       } else {
-        throw new Error('Failed to generate story');
+        throw new Error('ストーリーの生成に失敗しました');
       }
     } catch (error) {
-      console.error('Error generating story:', error);
-      setError(error.response?.data?.error || 'Error generating story. Please try again.');
+      console.error('ストーリー生成エラー:', error);
+      setError(error.response?.data?.error || 'ストーリーの生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
@@ -35,12 +35,12 @@ const StoryGenerator = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">AI Story Generator</h1>
+      <h1 className="text-3xl font-bold mb-8">AIストーリー作成</h1>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="prompt" className="block text-sm font-medium text-gray-700">
-            Story Prompt
+            ストーリーの設定
           </label>
           <textarea
             id="prompt"
@@ -48,7 +48,7 @@ const StoryGenerator = () => {
             onChange={(e) => setPrompt(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             rows="4"
-            placeholder="Enter your story idea..."
+            placeholder="ストーリーのアイデアや設定を入力してください..."
           />
         </div>
 
@@ -63,10 +63,10 @@ const StoryGenerator = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Generating...
+              生成中...
             </>
           ) : (
-            'Generate Story'
+            'ストーリーを生成'
           )}
         </button>
       </form>
@@ -79,7 +79,7 @@ const StoryGenerator = () => {
 
       {generatedStory && (
         <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Generated Story</h2>
+          <h2 className="text-xl font-semibold mb-4">生成されたストーリー</h2>
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="whitespace-pre-wrap">{generatedStory}</p>
           </div>

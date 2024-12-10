@@ -10,19 +10,19 @@ const CharacterCreator = () => {
   const [error, setError] = useState(null);
 
   const generatePrompt = (fields) => {
-    return `Create a detailed character profile with the following information:
+    return `以下の情報を含む詳細なキャラクタープロフィールを作成してください：
     ${prompt}
     
-    Please include:
-    - Name and basic demographics
-    - Personality traits
-    - Background story
-    - Goals and motivations
-    - Physical description
-    - Special abilities or skills (if any)
-    - Key relationships
+    含めるべき情報：
+    - 名前と基本的な属性
+    - 性格特性
+    - 経歴
+    - 目標と動機
+    - 外見的特徴
+    - 特殊能力やスキル（該当する場合）
+    - 重要な人間関係
     
-    Format the response in a clear, organized way.`;
+    わかりやすく整理された形式で回答してください。`;
   };
 
   const handleSubmit = async (e) => {
@@ -39,11 +39,11 @@ const CharacterCreator = () => {
       if (response.data.success) {
         setCharacter(response.data.data);
       } else {
-        throw new Error('Failed to generate character');
+        throw new Error('キャラクターの生成に失敗しました');
       }
     } catch (error) {
-      console.error('Error generating character:', error);
-      setError(error.response?.data?.error || 'Error generating character. Please try again.');
+      console.error('キャラクター生成エラー:', error);
+      setError(error.response?.data?.error || 'キャラクターの生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
@@ -51,12 +51,12 @@ const CharacterCreator = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">AI Character Creator</h1>
+      <h1 className="text-3xl font-bold mb-8">AIキャラクター作成</h1>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="prompt" className="block text-sm font-medium text-gray-700">
-            Character Description
+            キャラクターの設定
           </label>
           <textarea
             id="prompt"
@@ -64,7 +64,7 @@ const CharacterCreator = () => {
             onChange={(e) => setPrompt(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             rows="4"
-            placeholder="Describe the character you want to create..."
+            placeholder="作成したいキャラクターの設定を入力してください..."
           />
         </div>
 
@@ -79,10 +79,10 @@ const CharacterCreator = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Creating Character...
+              作成中...
             </>
           ) : (
-            'Create Character'
+            'キャラクターを作成'
           )}
         </button>
       </form>
@@ -95,7 +95,7 @@ const CharacterCreator = () => {
 
       {character && (
         <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Generated Character</h2>
+          <h2 className="text-xl font-semibold mb-4">作成されたキャラクター</h2>
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="whitespace-pre-wrap">{character}</p>
           </div>
