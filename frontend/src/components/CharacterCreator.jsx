@@ -15,7 +15,11 @@ const CharacterCreator = () => {
   const [error, setError] = useState(null);
 
   const generateCharacterPrompt = (fields) => {
-    return `${selectedTemplate ? characterTemplates.find(t => t.id === selectedTemplate)?.template : ''}
+    const template = selectedTemplate 
+      ? characterTemplates.find(t => t.id === selectedTemplate)?.template 
+      : '';
+    
+    return `${template}
     ${prompt}
     
     キャラクターの詳細な設定を作成してください。
@@ -41,27 +45,37 @@ const CharacterCreator = () => {
     setError(null);
 
     try {
+      console.log('Generating character with prompt:', generateCharacterPrompt());
+      
       // キャラクター設定の生成
       const characterResponse = await axios.post(`${API_URL}/generate`, {
         prompt: generateCharacterPrompt(),
         type: 'character'
       });
 
+      console.log('Character generation response:', characterResponse);
+
       if (!characterResponse.data.success) {
         throw new Error('キャラクター生成に失敗しました');
       }
 
       const generatedContent = characterResponse.data.data;
+      console.log('Generated content:', generatedContent);
 
       // 生成された設定から名前と説明を抽出（最初の2行を使用）
       const lines = generatedContent.split('\n').filter(line => line.trim());
       const name = lines[0]?.replace(/^[^：:]*[：:]\s*/, '') || '名前未設定';
       const description = lines[1]?.replace(/^[^：:]*[：:]\s*/, '') || '説明なし';
 
+      console.log('Extracted name and description:', { name, description });
+
       // 画像生成
+      console.log('Generating image with prompt:', generateImagePrompt({ name, description }));
       const imageResponse = await axios.post(`${API_URL}/generate-image`, {
         prompt: generateImagePrompt({ name, description })
       });
+
+      console.log('Image generation response:', imageResponse);
 
       // キャラクター情報の保存
       const newCharacter = {
@@ -72,11 +86,16 @@ const CharacterCreator = () => {
         imageUrl: imageResponse.data.success ? imageResponse.data.data : null
       };
 
+      console.log('Saving character:', newCharacter);
       addCharacter(newCharacter);
       navigate('/characters');
     } catch (error) {
-      console.error('エラー:', error);
-      setError('キャラクターの生成中にエラーが発生しました。もう一度お試しください。');
+      console.error('詳細なエラー情報:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      setError(`エラーが発生しました: ${error.response?.data?.error || error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -116,6 +135,9 @@ const CharacterCreator = () => {
             rows="6"
             placeholder="キャラクターの特徴や設定を入力してください..."
           />
+          <p className="mt-2 text-sm text-gray-500">
+            テンプレートを選択するか、自由に設定を入力してください。両方選択することもできます。
+          </p>
         </div>
 
         <button

@@ -14,6 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Received request:', req.body);
     const { prompt, type } = req.body;
 
     const input = {
@@ -22,11 +23,7 @@ export default async function handler(req, res) {
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 200000,
-        top_k: 250,
-        stop_sequences: [],
-        temperature: 1,
-        top_p: 0.999,
+        max_tokens: 1024,
         messages: [
           {
             role: "user",
@@ -41,18 +38,21 @@ export default async function handler(req, res) {
       })
     };
 
+    console.log('Sending request to Bedrock:', input);
     const command = new InvokeModelCommand(input);
     const response = await client.send(command);
     
+    console.log('Raw response from Bedrock:', response);
     // Parse the response
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    console.log('Parsed response:', responseBody);
     
     res.status(200).json({ 
       success: true, 
       data: responseBody.content[0].text 
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Detailed error:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
