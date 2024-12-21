@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -7,24 +8,80 @@ const StoryGenerator = () => {
   const [prompt, setPrompt] = useState('');
   const [generatedStory, setGeneratedStory] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // タイトルと概要を抽出する関数
+  const extractTitleAndSummary = (content) => {
+    const lines = content.split('\n').filter(line => line.trim());
+    const titleLine = lines.find(line => line.includes('タイトル') || line.includes('題名'));
+    const title = titleLine ? titleLine.split(/[：:]/)[1]?.trim() : '無題';
+
+    // 最初の段落を概要として使用
+    const summary = lines.slice(1).find(line => line.length > 10) || '';
+
+    return { title, summary };
+  };
+
+  // ストーリーを保存する関数
+  const saveToSupabase = async (generatedContent) => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const { title, summary } = extractTitleAndSummary(generatedContent);
+      
+      const { data, error: saveError } = await supabase
+        .from('stories')
+        .insert([{
+          title,
+          content: prompt,
+          generated_content: generatedContent,
+          summary
+        }])
+        .select();
+
+      if (saveError) throw saveError;
+
+      setSaveSuccess(true);
+      console.log('Story saved successfully:', data);
+    } catch (error) {
+      console.error('Error saving story:', error);
+      setError('ストーリーの保存中にエラーが発生しました。');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSaveSuccess(false);
 
     try {
       const response = await axios.post(`${API_URL}/generate`, {
-        prompt,
+        prompt: `以下の設定でストーリーを生成してください。タイトルを必ず最初につけてください：
+
+${prompt}
+
+形式：
+タイトル：[タイトル]
+
+[ストーリー本文]`,
         type: 'story'
       });
 
-      if (response.data.success) {
-        setGeneratedStory(response.data.data);
-      } else {
+      if (!response.data.success) {
         throw new Error('ストーリーの生成に失敗しました');
       }
+
+      const generatedContent = response.data.data;
+      setGeneratedStory(generatedContent);
+
+      // 生成されたストーリーを自動的に保存
+      await saveToSupabase(generatedContent);
+
     } catch (error) {
       console.error('ストーリー生成エラー:', error);
       setError(error.response?.data?.error || 'ストーリーの生成中にエラーが発生しました。もう一度お試しください。');
@@ -54,7 +111,7 @@ const StoryGenerator = () => {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isSaving}
           className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
         >
           {isLoading ? (
@@ -65,6 +122,8 @@ const StoryGenerator = () => {
               </svg>
               生成中...
             </>
+          ) : isSaving ? (
+            '保存中...'
           ) : (
             'ストーリーを生成'
           )}
@@ -74,6 +133,12 @@ const StoryGenerator = () => {
       {error && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {saveSuccess && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+          <p className="text-green-600">ストーリーが正常に保存されました</p>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import StoryGenerator from './components/StoryGenerator';
 import CharacterCreator from './components/CharacterCreator';
+import History from './components/History';
 import Navigation from './components/Navigation';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
           <Routes>
             <Route path="/" element={<StoryGenerator />} />
             <Route path="/characters" element={<CharacterCreator />} />
+            <Route path="/history" element={<History />} />
           </Routes>
         </div>
       </div>

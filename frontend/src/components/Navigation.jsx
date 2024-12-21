@@ -10,7 +10,8 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/', label: 'ストーリー作成' },
-    { path: '/characters', label: 'キャラクター作成' }
+    { path: '/characters', label: 'キャラクター作成' },
+    { path: '/history', label: '履歴' }
   ];
 
   return (
