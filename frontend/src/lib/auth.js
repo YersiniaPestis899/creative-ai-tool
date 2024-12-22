@@ -5,8 +5,16 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
+const getRedirectUrl = () => {
+  const isProd = import.meta.env.PROD
+  return isProd 
+    ? 'https://creative-ai-tool.vercel.app/auth/callback'
+    : 'http://localhost:3000/auth/callback'
+}
+
 export const signInWithGoogle = async () => {
   try {
+    console.log('Redirect URL:', getRedirectUrl())
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -14,7 +22,7 @@ export const signInWithGoogle = async () => {
           access_type: 'offline',
           prompt: 'consent',
         },
-        redirectTo: `${import.meta.env.VITE_APP_URL}/auth/callback`
+        redirectTo: getRedirectUrl()
       }
     })
 
