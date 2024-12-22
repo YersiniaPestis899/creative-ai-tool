@@ -2,17 +2,26 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
 
 const getRedirectUrl = () => {
-  // 現在のオリジンを使用して動的にリダイレクトURLを生成
-  return `${window.location.origin}/auth/callback`
+  // 本番環境とローカル環境の判定
+  const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : appUrl
+  return `${baseUrl}/auth/callback`
 }
 
 export const signInWithGoogle = async () => {
   try {
     console.log('Starting Google sign-in process...')
+    console.log('Environment:', import.meta.env.MODE)
     console.log('Redirect URL:', getRedirectUrl())
     
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -31,6 +40,7 @@ export const signInWithGoogle = async () => {
       throw error
     }
     
+    console.log('Sign-in successful:', data)
     return data
   } catch (error) {
     console.error('Error signing in with Google:', error)
@@ -43,8 +53,7 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     
-    // サインアウト後のリダイレクト
-    window.location.href = window.location.origin
+    window.location.href = appUrl
   } catch (error) {
     console.error('Error signing out:', error)
     throw error
