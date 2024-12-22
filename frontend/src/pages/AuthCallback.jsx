@@ -1,13 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/auth'
-import { 
-  redirectToUrl, 
-  isProduction, 
-  logEnvironmentInfo,
-  isProductionUrl,
-  getFallbackUrl
-} from '../utils/environment'
+import { redirectToUrl, isProduction, buildUrl } from '../utils/environment'
 
 const AuthCallback = () => {
   const navigate = useNavigate()
@@ -15,43 +9,37 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // 環境情報のログ出力
-        logEnvironmentInfo()
-        
-        console.log('Processing authentication callback', {
+        console.log('Auth Callback: Processing', {
           currentUrl: window.location.href,
-          isProduction: isProduction(),
-          isProductionUrl: isProductionUrl()
+          isProduction: isProduction()
         })
 
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('Authentication session error:', error)
+          console.error('Auth Error:', error)
           redirectToUrl('/login')
           return
         }
 
         if (session) {
-          console.log('Authentication successful')
-          if (isProductionUrl()) {
+          console.log('Auth Success')
+          if (isProduction()) {
             redirectToUrl('/')
           } else {
             navigate('/')
           }
         } else {
-          console.log('No session found')
-          if (isProductionUrl()) {
+          console.log('No Session')
+          if (isProduction()) {
             redirectToUrl('/login')
           } else {
             navigate('/login')
           }
         }
       } catch (error) {
-        console.error('Authentication callback error:', error)
-        const fallbackUrl = getFallbackUrl()
-        console.log('Redirecting to fallback:', fallbackUrl)
-        window.location.replace(`${fallbackUrl}/login`)
+        console.error('Auth Failed:', error)
+        redirectToUrl('/login')
       }
     }
 
@@ -66,12 +54,7 @@ const AuthCallback = () => {
         <p className="mt-2 text-sm text-gray-500">
           環境: {isProduction() ? '本番' : '開発'}
         </p>
-        <p className="mt-1 text-xs text-gray-400">
-          {window.location.hostname}
-        </p>
       </div>
     </div>
   )
 }
-
-export default AuthCallback

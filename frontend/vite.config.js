@@ -19,8 +19,5 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src')
     }
-  },
-  define: {
-    __PROD__: JSON.stringify(process.env.NODE_ENV === 'production')
   }
 })
