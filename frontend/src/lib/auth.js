@@ -6,15 +6,15 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 const getRedirectUrl = () => {
-  const isProd = import.meta.env.PROD
-  return isProd 
-    ? 'https://creative-ai-tool.vercel.app/auth/callback'
-    : 'http://localhost:3000/auth/callback'
+  // 現在のオリジンを使用して動的にリダイレクトURLを生成
+  return `${window.location.origin}/auth/callback`
 }
 
 export const signInWithGoogle = async () => {
   try {
+    console.log('Starting Google sign-in process...')
     console.log('Redirect URL:', getRedirectUrl())
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -26,7 +26,11 @@ export const signInWithGoogle = async () => {
       }
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('Sign-in error:', error)
+      throw error
+    }
+    
     return data
   } catch (error) {
     console.error('Error signing in with Google:', error)
@@ -38,6 +42,9 @@ export const signOut = async () => {
   try {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    
+    // サインアウト後のリダイレクト
+    window.location.href = window.location.origin
   } catch (error) {
     console.error('Error signing out:', error)
     throw error

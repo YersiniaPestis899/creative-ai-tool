@@ -8,14 +8,26 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession()
-        if (error) throw error
+        console.log('Processing authentication callback...')
+        const { data: { session }, error } = await supabase.auth.getSession()
         
-        // 認証成功後のリダイレクト
-        navigate('/', { replace: true })
+        if (error) {
+          console.error('Authentication session error:', error)
+          throw error
+        }
+
+        if (session) {
+          console.log('Authentication successful, redirecting to home...')
+          // 絶対パスを使用して環境に依存しない遷移を実現
+          window.location.href = new URL('/', window.location.origin).href
+        } else {
+          console.log('No session found, redirecting to login...')
+          // 同様に絶対パスを使用
+          window.location.href = new URL('/login', window.location.origin).href
+        }
       } catch (error) {
-        console.error('Authentication error:', error)
-        navigate('/login', { replace: true })
+        console.error('Authentication callback error:', error)
+        window.location.href = new URL('/login', window.location.origin).href
       }
     }
 
