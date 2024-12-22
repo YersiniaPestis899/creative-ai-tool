@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { supabase } from '../lib/supabaseClient';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const StoryGenerator = () => {
   const [prompt, setPrompt] = useState('');
