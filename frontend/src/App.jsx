@@ -1,25 +1,41 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import StoryGenerator from './components/StoryGenerator';
-import CharacterCreator from './components/CharacterCreator';
-import History from './components/History';
-import Navigation from './components/Navigation';
+import React from 'react'
+import { AuthProvider } from './contexts/AuthContext'
+import StoryGenerator from './components/StoryGenerator'
+import LoginButton from './components/LoginButton'
+import { useAuth } from './contexts/AuthContext'
 
-function App() {
-  return (
-    <Router>
-      <div className="min-h-screen bg-gray-100">
-        <Navigation />
-        <div className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<StoryGenerator />} />
-            <Route path="/characters" element={<CharacterCreator />} />
-            <Route path="/history" element={<History />} />
-          </Routes>
+const AppContent = () => {
+  const { user } = useAuth()
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full space-y-8 p-8">
+          <div className="text-center">
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              Creative AI Story Tool
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              物語の世界観を AI と一緒に創造しましょう
+            </p>
+          </div>
+          <div className="mt-8 flex justify-center">
+            <LoginButton />
+          </div>
         </div>
       </div>
-    </Router>
-  );
+    )
+  }
+
+  return <StoryGenerator />
 }
 
-export default App;
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}
+
+export default App
