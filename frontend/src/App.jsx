@@ -3,7 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import StoryGenerator from './components/StoryGenerator'
 import CharacterCreator from './components/CharacterCreator'
 import AuthCallback from './pages/AuthCallback'
-import { useAuth } from './lib/auth'
+import { useAuth, signInWithGoogle, signOut } from './lib/auth'
 
 const App = () => {
   const { user } = useAuth()
@@ -55,17 +55,27 @@ const App = () => {
                 </a>
               </div>
             </div>
+            <div className="flex items-center">
+              <button
+                onClick={() => signOut()}
+                className="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                ログアウト
+              </button>
+            </div>
           </div>
         </div>
       </nav>
 
       <div className="py-10">
         <main>
-          <Routes>
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/" element={<StoryGenerator />} />
-            <Route path="/character" element={<CharacterCreator />} />
-          </Routes>
+          <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <Routes>
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/" element={<StoryGenerator />} />
+              <Route path="/character" element={<CharacterCreator />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </div>
