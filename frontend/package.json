@@ -1,11 +1,10 @@
 {
-  "name": "creative-ai-tool",
+  "name": "creative-ai-tool-frontend",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "rm -rf dist",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -17,7 +16,6 @@
     "react-router-dom": "^6.21.1"
   },
   "devDependencies": {
-    "@types/node": "^20.10.4",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
