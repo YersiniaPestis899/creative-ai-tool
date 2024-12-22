@@ -1,25 +1,49 @@
-const URLS = {
-  PRODUCTION: 'https://creative-ai-tool.vercel.app',
-  DEVELOPMENT: 'http://localhost:3000'
-}
-
-export const isProduction = () => {
-  if (typeof window === 'undefined') {
-    return import.meta.env.PROD
+// 定数定義
+const ENV = {
+  PRODUCTION: {
+    URL: 'https://creative-ai-tool.vercel.app',
+    HOSTNAME: 'creative-ai-tool.vercel.app'
   }
-  
-  return window.location.hostname.includes('vercel.app')
 }
 
-export const buildUrl = (path = '') => {
-  const baseUrl = isProduction() ? URLS.PRODUCTION : URLS.DEVELOPMENT
-  const cleanPath = path.startsWith('/') ? path : `/${path}`
-  return `${baseUrl}${cleanPath}`
+/**
+ * 環境判定
+ */
+export const isProduction = () => {
+  try {
+    if (typeof window === 'undefined') return false
+    return window.location.hostname === ENV.PRODUCTION.HOSTNAME
+  } catch {
+    return false
+  }
 }
 
+/**
+ * リダイレクトURL構築
+ */
+export const buildUrl = (path = '/') => {
+  try {
+    const base = ENV.PRODUCTION.URL
+    const cleanPath = path.startsWith('/') ? path : `/${path}`
+    return `${base}${cleanPath}`
+  } catch (error) {
+    console.error('URL construction error:', error)
+    return ENV.PRODUCTION.URL
+  }
+}
+
+/**
+ * リダイレクト処理実行
+ */
 export const handleRedirect = (path) => {
-  const url = buildUrl(path)
-  if (typeof window !== 'undefined') {
+  try {
+    if (typeof window === 'undefined') return
+    const url = buildUrl(path)
     window.location.replace(url)
+  } catch (error) {
+    console.error('Redirect error:', error)
+    if (typeof window !== 'undefined') {
+      window.location.href = ENV.PRODUCTION.URL
+    }
   }
 }

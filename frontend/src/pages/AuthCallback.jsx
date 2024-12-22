@@ -10,22 +10,22 @@ const AuthCallback = () => {
     const processAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
-        
+
         if (error) {
-          console.error('認証エラー:', error)
+          console.error('Auth error:', error)
           handleRedirect('/login')
           return
         }
 
         if (session) {
-          console.log('認証成功')
+          console.log('Auth success')
           handleRedirect('/')
         } else {
-          console.log('セッションなし')
+          console.log('No session found')
           handleRedirect('/login')
         }
       } catch (error) {
-        console.error('認証処理エラー:', error)
+        console.error('Auth process error:', error)
         handleRedirect('/login')
       }
     }
@@ -36,7 +36,7 @@ const AuthCallback = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"/>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto" />
         <p className="mt-4 text-lg text-gray-600">認証処理中...</p>
         <p className="mt-2 text-sm text-gray-500">
           {isProduction() ? '本番環境' : '開発環境'}
