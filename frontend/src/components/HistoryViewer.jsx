@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/auth'
+import { useAuth } from '../lib/auth'
 
 const HistoryViewer = () => {
+  const { user, session } = useAuth() // セッション情報も取得
   const [stories, setStories] = useState([])
   const [characters, setCharacters] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -9,43 +11,46 @@ const HistoryViewer = () => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchHistory()
-  }, [activeTab])
+    if (user && session) {
+      fetchHistory()
+    }
+  }, [activeTab, user, session])
 
   const fetchHistory = async () => {
+    if (!user || !session) {
+      console.log('Auth state:', { user, session })
+      setError('ユーザーが認証されていません')
+      setIsLoading(false)
+      return
+    }
+
     try {
       setIsLoading(true)
       setError(null)
 
-      const { data: session } = await supabase.auth.getSession()
-      const userId = session?.user?.id
+      console.log('Fetching data for user:', user.id)
+      
+      const { data, error: fetchError } = await supabase
+        .from(activeTab === 'stories' ? 'story_settings' : 'character_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
-      if (!userId) {
-        throw new Error('ユーザーが認証されていません')
+      if (fetchError) {
+        console.error('Fetch error:', fetchError)
+        throw fetchError
       }
 
+      console.log('Fetched data:', data)
+
       if (activeTab === 'stories') {
-        const { data: storiesData, error: storiesError } = await supabase
-          .from('story_settings')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-
-        if (storiesError) throw storiesError
-        setStories(storiesData)
+        setStories(data || [])
       } else {
-        const { data: charactersData, error: charactersError } = await supabase
-          .from('character_settings')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-
-        if (charactersError) throw charactersError
-        setCharacters(charactersData)
+        setCharacters(data || [])
       }
     } catch (error) {
       console.error('History fetch error:', error)
-      setError('履歴の取得中にエラーが発生しました')
+      setError(error.message || '履歴の取得中にエラーが発生しました')
     } finally {
       setIsLoading(false)
     }
@@ -59,6 +64,20 @@ const HistoryViewer = () => {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // 認証状態のデバッグ情報表示
+  if (!user || !session) {
+    console.log('Not authenticated:', { user, session })
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <p className="text-yellow-700">
+            認証情報を確認中... ログイン状態: {user ? 'ログイン済み' : '未ログイン'}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -93,6 +112,11 @@ const HistoryViewer = () => {
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{error}</p>
+          {/* デバッグ情報の表示 */}
+          <p className="text-sm text-red-400 mt-2">
+            認証状態: {user ? 'ログイン済み' : '未ログイン'}
+            {user && ` (ユーザーID: ${user.id})`}
+          </p>
         </div>
       )}
 
@@ -109,7 +133,7 @@ const HistoryViewer = () => {
                 <p className="text-sm text-gray-500">{formatDate(story.created_at)}</p>
               </div>
               <div className="prose max-w-none">
-                <p className="text-gray-700 whitespace-pre-wrap">{story.content}</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{story.world_building}</p>
               </div>
             </div>
           ))}
@@ -125,15 +149,6 @@ const HistoryViewer = () => {
                 <h3 className="text-lg font-medium text-gray-900">{character.name}</h3>
                 <p className="text-sm text-gray-500">{formatDate(character.created_at)}</p>
               </div>
-              {character.image_url && (
-                <div className="mb-4">
-                  <img
-                    src={character.image_url}
-                    alt={character.name}
-                    className="max-h-64 rounded-md mx-auto"
-                  />
-                </div>
-              )}
               <div className="prose max-w-none">
                 <p className="text-gray-700 whitespace-pre-wrap">{character.description}</p>
               </div>
