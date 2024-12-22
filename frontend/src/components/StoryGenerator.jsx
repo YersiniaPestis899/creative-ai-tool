@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 const StoryGenerator = () => {
   const [prompt, setPrompt] = useState('');
@@ -12,19 +12,14 @@ const StoryGenerator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // タイトルと概要を抽出する関数
   const extractTitleAndSummary = (content) => {
     const lines = content.split('\n').filter(line => line.trim());
     const titleLine = lines.find(line => line.includes('タイトル') || line.includes('題名'));
     const title = titleLine ? titleLine.split(/[：:]/)[1]?.trim() : '無題';
-
-    // 最初の段落を概要として使用
     const summary = lines.slice(1).find(line => line.length > 10) || '';
-
     return { title, summary };
   };
 
-  // ストーリーを保存する関数
   const saveToSupabase = async (generatedContent) => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -37,11 +32,15 @@ const StoryGenerator = () => {
           title,
           content: prompt,
           generated_content: generatedContent,
-          summary
+          summary,
+          created_at: new Date().toISOString()
         }])
         .select();
 
-      if (saveError) throw saveError;
+      if (saveError) {
+        console.error('Supabase error details:', saveError);
+        throw saveError;
+      }
 
       setSaveSuccess(true);
       console.log('Story saved successfully:', data);
@@ -79,7 +78,6 @@ ${prompt}
       const generatedContent = response.data.data;
       setGeneratedStory(generatedContent);
 
-      // 生成されたストーリーを自動的に保存
       await saveToSupabase(generatedContent);
 
     } catch (error) {
