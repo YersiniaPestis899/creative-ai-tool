@@ -2,7 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
+const PRODUCTION_URL = 'https://creative-ai-tool.vercel.app'
+
+// 環境に基づいたURLの取得
+const getBaseUrl = () => {
+  if (import.meta.env.PROD) {
+    return PRODUCTION_URL
+  }
+  return 'http://localhost:3000'
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -12,18 +20,11 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
-const getRedirectUrl = () => {
-  // 本番環境とローカル環境の判定
-  const baseUrl = import.meta.env.DEV ? 'http://localhost:3000' : appUrl
-  return `${baseUrl}/auth/callback`
-}
-
 export const signInWithGoogle = async () => {
   try {
-    console.log('Starting Google sign-in process...')
-    console.log('Environment:', import.meta.env.MODE)
-    console.log('Redirect URL:', getRedirectUrl())
-    
+    console.log('Current environment:', import.meta.env.MODE)
+    console.log('Base URL:', getBaseUrl())
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -31,7 +32,7 @@ export const signInWithGoogle = async () => {
           access_type: 'offline',
           prompt: 'consent',
         },
-        redirectTo: getRedirectUrl()
+        redirectTo: `${getBaseUrl()}/auth/callback`
       }
     })
 
@@ -40,7 +41,6 @@ export const signInWithGoogle = async () => {
       throw error
     }
     
-    console.log('Sign-in successful:', data)
     return data
   } catch (error) {
     console.error('Error signing in with Google:', error)
@@ -53,7 +53,8 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     
-    window.location.href = appUrl
+    // 環境に応じたリダイレクト
+    window.location.href = getBaseUrl()
   } catch (error) {
     console.error('Error signing out:', error)
     throw error

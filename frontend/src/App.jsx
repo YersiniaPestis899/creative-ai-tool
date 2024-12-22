@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import StoryGenerator from './components/StoryGenerator'
 import LoginButton from './components/LoginButton'
@@ -6,6 +7,16 @@ import { useAuth } from './contexts/AuthContext'
 
 const AppContent = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const handleSignOut = () => {
+      navigate('/login', { replace: true })
+    }
+
+    window.addEventListener('SIGN_OUT_SUCCESS', handleSignOut)
+    return () => window.removeEventListener('SIGN_OUT_SUCCESS', handleSignOut)
+  }, [navigate])
 
   if (!user) {
     return (
