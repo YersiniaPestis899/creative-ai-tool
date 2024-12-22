@@ -4,25 +4,23 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    'process.env': process.env
-  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html')
-      }
-    },
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true
+      input: resolve(__dirname, 'index.html')
     }
+  },
+  server: {
+    port: 3000,
+    strictPort: true
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src')
     }
+  },
+  define: {
+    __PROD__: JSON.stringify(process.env.NODE_ENV === 'production')
   }
 })
