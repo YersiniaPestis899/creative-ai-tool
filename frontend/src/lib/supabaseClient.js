@@ -1,15 +1,26 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://inichkwyezruanpovcff.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImluaWNoa3d5ZXpydWFucG92Y2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDMyMzIxNjgsImV4cCI6MjAxODgwODE2OH0.zDhPOJpxmCcgvq1BUvgSOr86h5kjYgERD5cL_Dw5NFk'
+// Viteの環境変数参照方法に修正
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+// 初期化前の値検証
+console.log('Supabase URL:', supabaseUrl)
+console.log('Supabase Key exists:', !!supabaseKey)
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase credentials')
+  throw new Error(`Supabase credentials are missing:
+    URL: ${supabaseUrl ? 'exists' : 'missing'}
+    Key: ${supabaseKey ? 'exists' : 'missing'}
+  `)
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
+const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
-    persistSession: true
+    persistSession: true,
+    detectSessionInUrl: true
   }
 })
+
+export { supabase }
