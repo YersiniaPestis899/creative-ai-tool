@@ -1,49 +1,36 @@
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/auth'
-import { redirectToUrl, isProduction, buildUrl } from '../utils/environment'
+import { isProduction, handleRedirect } from '../utils/environment'
 
 const AuthCallback = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const handleCallback = async () => {
+    const processAuth = async () => {
       try {
-        console.log('Auth Callback: Processing', {
-          currentUrl: window.location.href,
-          isProduction: isProduction()
-        })
-
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('Auth Error:', error)
-          redirectToUrl('/login')
+          console.error('認証エラー:', error)
+          handleRedirect('/login')
           return
         }
 
         if (session) {
-          console.log('Auth Success')
-          if (isProduction()) {
-            redirectToUrl('/')
-          } else {
-            navigate('/')
-          }
+          console.log('認証成功')
+          handleRedirect('/')
         } else {
-          console.log('No Session')
-          if (isProduction()) {
-            redirectToUrl('/login')
-          } else {
-            navigate('/login')
-          }
+          console.log('セッションなし')
+          handleRedirect('/login')
         }
       } catch (error) {
-        console.error('Auth Failed:', error)
-        redirectToUrl('/login')
+        console.error('認証処理エラー:', error)
+        handleRedirect('/login')
       }
     }
 
-    handleCallback()
+    processAuth()
   }, [navigate])
 
   return (
@@ -52,9 +39,11 @@ const AuthCallback = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"/>
         <p className="mt-4 text-lg text-gray-600">認証処理中...</p>
         <p className="mt-2 text-sm text-gray-500">
-          環境: {isProduction() ? '本番' : '開発'}
+          {isProduction() ? '本番環境' : '開発環境'}
         </p>
       </div>
     </div>
   )
 }
+
+export default AuthCallback
