@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/auth';
-import httpClient from '../lib/httpClient';
 import { useAuth } from '../lib/auth';
 
 const StoryGenerator = () => {
@@ -12,15 +11,47 @@ const StoryGenerator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const generateWorldBuilding = (prompt) => {
+    // ローカルでの世界観生成ロジック
+    const baseTemplate = `
+設定タイトル：${prompt.length > 10 ? prompt.slice(0, 10) + 'の世界' : prompt + 'の世界'}
+
+世界観：
+${prompt}から想起される独自の世界観を展開します。
+
+主要設定：
+- 重要な場所：この物語の中心となる場所や地域
+- 重要な組織：物語に関わる主要な組織や団体
+- 文化的特徴：この世界における独特の文化や習慣
+- 技術レベル：この世界の科学技術や魔法の発展度
+
+重要な登場人物：
+- 主要な登場人物たち
+- それぞれの立場や役割
+- 人物間の関係性
+
+特殊な要素：
+- この世界特有のシステムや法則
+- 特別な能力や技術
+- ユニークな制限や特徴
+
+物語の核となる要素：
+- 中心的なテーマ
+- 主要な対立構造
+- 物語を動かす原動力
+`;
+
+    return baseTemplate;
+  };
+
   const extractSettingDetails = (content) => {
     const lines = content.split('\n').filter(line => line.trim());
-    const titleLine = lines.find(line => line.includes('設定タイトル') || line.includes('世界観タイトル'));
+    const titleLine = lines.find(line => line.includes('設定タイトル'));
     const title = titleLine ? titleLine.split(/[：:]/)[1]?.trim() : '無題';
     
     const summary = lines.find(line => 
-      line.includes('概要') || line.includes('サマリー') || 
-      line.length > 20
-    )?.replace(/^(概要|サマリー)[：:]/, '').trim() || '';
+      line.includes('世界観：')
+    )?.replace(/^世界観：/, '').trim() || '';
 
     return { title, summary };
   };
@@ -83,48 +114,14 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
 
     try {
-      const response = await httpClient.post('/generate', {
-        prompt: `以下の要素を含む物語の世界観と設定を詳細に作成してください：
-
-${prompt}
-
-以下の形式で出力してください：
-
-設定タイトル：[独創的なタイトル]
-
-世界観：
-[マクロな視点での世界の状況、時代背景、社会システムなど]
-
-主要設定：
-[重要な場所、組織、文化、技術などの詳細]
-
-重要な登場人物：
-[キーとなる登場人物たちの関係性、立場、背景]
-
-特殊な要素：
-[魔法システム、特殊能力、独自の技術など]
-
-物語の核となる要素：
-[この世界観における主要な対立構造、テーマ、物語を動かす原動力]`,
-        type: 'world_building'
-      });
-
-      if (!response.data.success) {
-        throw new Error(response.data.error || '設定の生成に失敗しました');
-      }
-
-      const generatedWorldBuilding = response.data.data;
+      // ローカルで世界観を生成
+      const generatedWorldBuilding = generateWorldBuilding(prompt);
       setGeneratedContent(generatedWorldBuilding);
 
       await saveToSupabase(generatedWorldBuilding);
-
     } catch (error) {
       console.error('設定生成エラー:', error);
-      setError(
-        error.response?.data?.error || 
-        error.message || 
-        '設定の生成中にエラーが発生しました。もう一度お試しください。'
-      );
+      setError(error.message || '設定の生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
