@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Creative AI Story Tool</title>
     <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self' https://*.google.com https://*.gstatic.com https://*.googleapis.com;
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googleapis.com https://accounts.google.com https://play.google.com;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.gstatic.com;
-      img-src 'self' data: blob: https://*.google.com https://*.gstatic.com https://*.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' https://*.supabase.co https://*.google.com https://accounts.google.com https://play.google.com https://*.googleapis.com;
+      default-src 'self' https://*.google.com https://*.gstatic.com https://*.googleapis.com https://accounts.google.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googleapis.com https://accounts.google.com chrome-extension: ;
+      connect-src 'self' https://*.supabase.co https://*.google.com https://accounts.google.com wss://*.supabase.co;
       frame-src 'self' https://accounts.google.com https://*.google.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      img-src 'self' data: https://*.google.com https://*.gstatic.com;
+      font-src 'self' https://fonts.gstatic.com;
     ">
   </head>
   <body>

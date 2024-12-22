@@ -8,15 +8,35 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    flowType: 'pkce',  // PKCE認証フローを使用
+    debug: true        // デバッグモード有効化
   }
 })
 
 export const signInWithGoogle = async () => {
   try {
-    console.log('Starting Google sign-in process...')
+    // 環境情報のログ出力
+    console.log('Environment Information:', {
+      mode: import.meta.env.MODE,
+      baseUrl: getEnvironmentUrl(),
+      userAgent: navigator.userAgent
+    })
+
     const redirectUrl = ensureProductionUrl('/auth/callback')
-    console.log('Redirect URL:', redirectUrl)
+    console.log('OAuth Configuration:', {
+      redirectUrl,
+      provider: 'google'
+    })
+
+    // エラーハンドリングの強化
+    window.addEventListener('error', (event) => {
+      console.error('Global error caught:', event.error)
+    })
+
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Unhandled promise rejection:', event.reason)
+    })
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -25,18 +45,27 @@ export const signInWithGoogle = async () => {
           access_type: 'offline',
           prompt: 'consent',
         },
-        redirectTo: redirectUrl
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: false,  // ブラウザリダイレクトを確実に実行
       }
     })
 
     if (error) {
-      console.error('Sign-in error:', error)
+      console.error('Authentication error details:', {
+        error,
+        timestamp: new Date().toISOString(),
+        context: 'signInWithGoogle'
+      })
       throw error
     }
     
     return data
   } catch (error) {
-    console.error('Error signing in with Google:', error)
+    console.error('Detailed error information:', {
+      error,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    })
     throw error
   }
 }
@@ -46,9 +75,11 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     
-    window.location.href = getEnvironmentUrl()
+    const redirectUrl = getEnvironmentUrl()
+    console.log('Sign out redirect:', redirectUrl)
+    window.location.href = redirectUrl
   } catch (error) {
-    console.error('Error signing out:', error)
+    console.error('Sign out error:', error)
     throw error
   }
 }
@@ -59,7 +90,7 @@ export const getCurrentUser = async () => {
     if (error) throw error
     return session?.user || null
   } catch (error) {
-    console.error('Error getting current user:', error)
+    console.error('Get current user error:', error)
     return null
   }
 }
