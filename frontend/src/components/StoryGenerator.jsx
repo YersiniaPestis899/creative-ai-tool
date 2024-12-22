@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { supabase } from '../lib/supabaseClient';
-
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+import { supabase } from '../lib/auth';
+import httpClient from '../lib/httpClient';
 
 const StoryGenerator = () => {
   const [prompt, setPrompt] = useState('');
@@ -30,17 +28,6 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
     
     try {
-      // テーブル存在確認
-      const { error: checkError } = await supabase
-        .from('story_settings')
-        .select('count')
-        .limit(1);
-
-      if (checkError) {
-        console.error('Table check error:', checkError);
-        throw new Error('テーブルへのアクセスに失敗しました');
-      }
-
       const { title, summary } = extractSettingDetails(worldBuildingContent);
       
       const { data, error: saveError } = await supabase
@@ -53,8 +40,6 @@ const StoryGenerator = () => {
           created_at: new Date().toISOString()
         }])
         .select();
-
-      console.log('Save attempt response:', { data, error: saveError });
 
       if (saveError) {
         console.error('Save error details:', saveError);
@@ -80,7 +65,7 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
 
     try {
-      const response = await axios.post(`${API_URL}/generate`, {
+      const response = await httpClient.post('/generate', {
         prompt: `以下の要素を含む物語の世界観と設定を詳細に作成してください：
 
 ${prompt}

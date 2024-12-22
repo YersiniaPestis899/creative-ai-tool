@@ -1,57 +1,48 @@
 /**
- * 環境設定の管理用ユーティリティ
+ * 環境管理ユーティリティ
  */
 
 const PRODUCTION_URL = 'https://creative-ai-tool.vercel.app'
 const DEVELOPMENT_URL = 'http://localhost:3000'
 
-// 環境判定の微修正
+/**
+ * 本番環境検出
+ */
 export const isProduction = () => {
-  if (typeof window === 'undefined') return false
-  
-  const hostname = window.location.hostname
-  return hostname === 'creative-ai-tool.vercel.app' || 
-         hostname.includes('vercel.app')
+  if (typeof window === 'undefined') return import.meta.env.PROD
+  return window.location.hostname.includes('vercel.app') ||
+         import.meta.env.PROD ||
+         window.location.protocol === 'https:'
 }
 
-// ベースURL取得ロジックの更新
+/**
+ * 基本URL取得
+ */
 export const getBaseUrl = () => {
-  try {
-    return isProduction() ? PRODUCTION_URL : DEVELOPMENT_URL
-  } catch {
-    return DEVELOPMENT_URL
-  }
+  // 複数のフォールバックメカニズム
+  const url = isProduction() ? PRODUCTION_URL : DEVELOPMENT_URL
+  console.log('Environment URL:', { 
+    url, 
+    isProd: isProduction(), 
+    hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR'
+  })
+  return url
 }
 
-// URL構築ロジックの最適化
+/**
+ * 完全なURL構築
+ */
 export const buildUrl = (path = '') => {
-  try {
-    const base = getBaseUrl()
-    const cleanPath = path.startsWith('/') ? path : `/${path}`
-    return `${base}${cleanPath}`
-  } catch {
-    console.warn('URLの構築中にエラーが発生しました')
-    return '/'
-  }
-}
-
-// コールバックURL処理の堅牢化
-export const handleCallbackUrl = () => {
-  try {
-    if (typeof window === 'undefined') {
-      return { redirectUrl: '/' }
-    }
-
-    const url = new URL(window.location.href)
-    const code = url.searchParams.get('code')
-    const error = url.searchParams.get('error')
-    
-    return {
-      code,
-      error,
-      redirectUrl: error ? buildUrl('/login') : buildUrl('/')
-    }
-  } catch {
-    return { redirectUrl: '/' }
-  }
+  const base = getBaseUrl()
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  const fullUrl = `${base}${cleanPath}`
+  
+  console.log('URL Construction:', {
+    base,
+    path,
+    fullUrl,
+    environment: import.meta.env.MODE
+  })
+  
+  return fullUrl
 }
