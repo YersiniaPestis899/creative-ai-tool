@@ -1,88 +1,37 @@
 /**
- * 環境とURL管理の統合ユーティリティ
+ * 環境管理の単一責任ユーティリティ
  */
 
-// 定数定義
-const ENV = {
-  PRODUCTION: 'production',
-  DEVELOPMENT: 'development'
-}
-
-const URLS = {
-  PRODUCTION: 'https://creative-ai-tool.vercel.app',
-  DEVELOPMENT: 'http://localhost:3000'
-}
+// 本番環境URLの定数化
+const PRODUCTION_URL = 'https://creative-ai-tool.vercel.app'
 
 /**
- * 現在の実行環境を決定
- * @returns {string} 環境識別子
- */
-const determineEnvironment = () => {
-  // 複数の環境判定要因を評価
-  const factors = {
-    // 本番環境の判定要素
-    isProduction: 
-      import.meta.env.PROD ||
-      window.location.hostname === 'creative-ai-tool.vercel.app' ||
-      window.location.hostname.includes('vercel.app'),
-    
-    // 開発環境の判定要素
-    isDevelopment:
-      import.meta.env.DEV ||
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1'
-  }
-
-  // 環境判定のログ出力
-  console.log('Environment Detection Factors:', {
-    factors,
-    hostname: window.location.hostname,
-    mode: import.meta.env.MODE,
-    currentUrl: window.location.href
-  })
-
-  return factors.isProduction ? ENV.PRODUCTION : ENV.DEVELOPMENT
-}
-
-/**
- * 現在の環境に基づいてベースURLを取得
- * @returns {string} ベースURL
- */
-export const getBaseUrl = () => {
-  const currentEnv = determineEnvironment()
-  const baseUrl = URLS[currentEnv.toUpperCase()]
-
-  console.log('URL Resolution:', {
-    environment: currentEnv,
-    baseUrl,
-    currentLocation: window.location.href
-  })
-
-  return baseUrl
-}
-
-/**
- * 完全なURLを構築
- * @param {string} path - 追加するパス
- * @returns {string} 完全なURL
+ * URLの構築と管理を担当
  */
 export const buildUrl = (path = '') => {
-  const base = getBaseUrl()
   const cleanPath = path.startsWith('/') ? path : `/${path}`
-  const fullUrl = `${base}${cleanPath}`
-
-  console.log('URL Construction:', {
-    base,
-    path,
-    fullUrl,
-    environment: determineEnvironment()
-  })
-
-  return fullUrl
+  return `${PRODUCTION_URL}${cleanPath}`
 }
 
 /**
- * 現在の環境が本番かどうかを判定
- * @returns {boolean}
+ * 環境の状態管理
  */
-export const isProduction = () => determineEnvironment() === ENV.PRODUCTION
+export const isProduction = () => {
+  return window.location.origin === PRODUCTION_URL
+}
+
+/**
+ * リダイレクト処理の統合管理
+ */
+export const handleRedirect = (path) => {
+  const targetUrl = buildUrl(path)
+  
+  if (window.location.href !== targetUrl) {
+    console.log('Redirecting to:', targetUrl, {
+      current: window.location.href,
+      isProduction: isProduction()
+    })
+    
+    window.location.replace(targetUrl)
+  }
+}
