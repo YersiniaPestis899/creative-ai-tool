@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/auth';
 import httpClient from '../lib/httpClient';
+import { useAuth } from '../lib/auth';
 
 const StoryGenerator = () => {
+  const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -24,6 +26,10 @@ const StoryGenerator = () => {
   };
 
   const saveToSupabase = async (worldBuildingContent) => {
+    if (!user) {
+      throw new Error('ユーザーが認証されていません');
+    }
+
     setIsSaving(true);
     setSaveSuccess(false);
     
@@ -33,6 +39,7 @@ const StoryGenerator = () => {
       const { data, error: saveError } = await supabase
         .from('story_settings')
         .insert([{
+          user_id: user.id,
           title,
           setting_prompt: prompt,
           world_building: worldBuildingContent,
@@ -60,6 +67,17 @@ const StoryGenerator = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!user) {
+      setError('ログインが必要です');
+      return;
+    }
+
+    if (!prompt.trim()) {
+      setError('世界観・設定の要素を入力してください');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setSaveSuccess(false);
@@ -92,7 +110,7 @@ ${prompt}
       });
 
       if (!response.data.success) {
-        throw new Error('設定の生成に失敗しました');
+        throw new Error(response.data.error || '設定の生成に失敗しました');
       }
 
       const generatedWorldBuilding = response.data.data;
@@ -102,7 +120,11 @@ ${prompt}
 
     } catch (error) {
       console.error('設定生成エラー:', error);
-      setError(error.response?.data?.error || '設定の生成中にエラーが発生しました。もう一度お試しください。');
+      setError(
+        error.response?.data?.error || 
+        error.message || 
+        '設定の生成中にエラーが発生しました。もう一度お試しください。'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +165,7 @@ ${prompt}
 
         <button
           type="submit"
-          disabled={isLoading || isSaving}
+          disabled={isLoading || isSaving || !user}
           className="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-lg font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
         >
           {isLoading ? (
@@ -156,6 +178,8 @@ ${prompt}
             </>
           ) : isSaving ? (
             '保存中...'
+          ) : !user ? (
+            'ログインが必要です'
           ) : (
             '世界観・設定を生成'
           )}
