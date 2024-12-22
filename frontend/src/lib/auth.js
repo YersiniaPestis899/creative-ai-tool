@@ -1,59 +1,81 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 固定値による環境定義
-const APP_URL = 'https://creative-ai-tool.vercel.app'
+const PROD_URL = 'https://creative-ai-tool.vercel.app'
 const SUPABASE_URL = 'https://inichkwyezruanpovcff.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImluaWNoa3d5ZXpydWFucG92Y2ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3ODgxODgsImV4cCI6MjA1MDM2NDE4OH0.Vy2HWo3LrQBZPgTjaRr0-6ommN90Xh9uUizKUhQllvI'
 
-// Supabaseクライアント初期化
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+// セッション永続化の設定
+const sessionConfig = {
+  db: {
+    schema: 'public'
+  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    storage: globalThis.localStorage,
+    storageKey: 'creative-ai-auth-token',
+    debug: true
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'creative-ai-tool'
+    }
   }
-})
+}
+
+// Supabaseクライアントの初期化
+export const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY,
+  sessionConfig
+)
 
 /**
- * 認証処理の実装
+ * OAuth認証の実装
  */
 export const signInWithGoogle = async () => {
   try {
-    // 固定コールバックURLの設定
-    const redirectUrl = new URL('/auth/callback', APP_URL).toString()
-    console.log('Authentication configuration:', { redirectUrl })
-
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: `${PROD_URL}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'
-        }
+        },
+        skipBrowserRedirect: false
       }
     })
 
     if (error) throw error
     return data
-
   } catch (error) {
-    console.error('Authentication error:', error)
+    console.error('認証エラー:', error)
     throw error
   }
 }
 
 /**
- * ログアウト処理
+ * セッション確認
+ */
+export const checkSession = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    window.location.replace(`${PROD_URL}/login`)
+    return null
+  }
+  return session
+}
+
+/**
+ * サインアウト処理
  */
 export const signOut = async () => {
   try {
     await supabase.auth.signOut()
-    window.location.replace(APP_URL)
-  } catch (error) {
-    console.error('Signout error:', error)
-    window.location.replace(APP_URL)
+  } finally {
+    window.location.replace(PROD_URL)
   }
 }
 
@@ -61,11 +83,6 @@ export const signOut = async () => {
  * 現在のユーザー取得
  */
 export const getCurrentUser = async () => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session?.user || null
-  } catch (error) {
-    console.error('Session error:', error)
-    return null
-  }
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.user || null
 }

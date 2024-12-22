@@ -1,22 +1,12 @@
-import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AuthProvider } from './contexts/AuthContext'
+import React from 'react'
+import { Route, Routes } from 'react-router-dom'
 import StoryGenerator from './components/StoryGenerator'
-import LoginButton from './components/LoginButton'
-import { useAuth } from './contexts/AuthContext'
+import CharacterCreator from './components/CharacterCreator'
+import AuthCallback from './pages/AuthCallback'
+import { useAuth } from './lib/auth'
 
-const AppContent = () => {
+const App = () => {
   const { user } = useAuth()
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    const handleSignOut = () => {
-      navigate('/login', { replace: true })
-    }
-
-    window.addEventListener('SIGN_OUT_SUCCESS', handleSignOut)
-    return () => window.removeEventListener('SIGN_OUT_SUCCESS', handleSignOut)
-  }, [navigate])
 
   if (!user) {
     return (
@@ -27,25 +17,58 @@ const AppContent = () => {
               Creative AI Story Tool
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              物語の世界観を AI と一緒に創造しましょう
+              ログインして物語作成を始めましょう
             </p>
           </div>
-          <div className="mt-8 flex justify-center">
-            <LoginButton />
-          </div>
+          <button
+            onClick={() => signInWithGoogle()}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Googleでログイン
+          </button>
         </div>
       </div>
     )
   }
 
-  return <StoryGenerator />
-}
-
-const App = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <h1 className="text-xl font-bold text-gray-900">Creative AI Tool</h1>
+              </div>
+              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <a
+                  href="/"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  ストーリー作成
+                </a>
+                <a
+                  href="/character"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  キャラクター作成
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="py-10">
+        <main>
+          <Routes>
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/" element={<StoryGenerator />} />
+            <Route path="/character" element={<CharacterCreator />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
   )
 }
 
