@@ -1,13 +1,16 @@
 {
-  "headers": [
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite",
+  "rewrites": [
     {
       "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self' https://*.supabase.co https://*.vercel.app https://*.vercel.live; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googleapis.com https://accounts.google.com https://*.vercel.app https://*.vercel.live chrome-extension:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.google.com https://accounts.google.com https://*.vercel.app https://*.vercel.live; frame-src 'self' https://accounts.google.com https://*.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.vercel.app https://*.vercel.live; img-src 'self' data: https://*.google.com https://*.gstatic.com https://*.vercel.app https://*.vercel.live; font-src 'self' https://fonts.gstatic.com https://*.vercel.app https://*.vercel.live; worker-src 'self';"
-        }
-      ]
+      "destination": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "VITE_SUPABASE_URL": "@vite_supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
+    "NODE_ENV": "production"
+  }
 }
