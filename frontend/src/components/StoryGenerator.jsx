@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/auth';
 import { useAuth } from '../lib/auth';
-import axios from 'axios';
+import httpClient from '../lib/httpClient';
 
 const StoryGenerator = () => {
   const { user } = useAuth();
@@ -14,67 +14,18 @@ const StoryGenerator = () => {
 
   const generateWithBedrock = async (promptText) => {
     try {
-      const response = await axios.post('https://fs712ju5nl.execute-api.us-west-2.amazonaws.com', {
-        modelId: "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        contentType: "application/json",
-        accept: "application/json",
-        body: {
-          anthropic_version: "bedrock-2023-05-31",
-          max_tokens: 4000,
-          top_k: 250,
-          stop_sequences: [],
-          temperature: 0.8,
-          top_p: 0.95,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `以下の要素に基づいて、詳細な世界観と設定を生成してください。
-
-生成する際の注意点:
-- オリジナリティのある独創的な設定を心がける
-- 内部的な整合性を保つ
-- 物語としての発展可能性を持たせる
-- 具体的かつ詳細な描写を行う
-
-要素：${promptText}
-
-以下の形式で出力してください：
-
-設定タイトル：[独創的なタイトル]
-
-世界観：
-[マクロな視点での世界の状況、時代背景、社会システムなど]
-
-主要設定：
-[重要な場所、組織、文化、技術などの詳細]
-
-重要な登場人物：
-[キーとなる登場人物たちの関係性、立場、背景]
-
-特殊な要素：
-[魔法システム、特殊能力、独自の技術など]
-
-物語の核となる要素：
-[この世界観における主要な対立構造、テーマ、物語を動かす原動力]`
-                }
-              ]
-            }
-          ]
-        }
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+      const response = await httpClient.post('/generate', {
+        prompt: promptText
       });
 
-      return response.data.messages[0].content[0].text;
+      if (!response.data.success) {
+        throw new Error(response.data.error || '生成に失敗しました');
+      }
+
+      return response.data.data;
     } catch (error) {
-      console.error('Bedrock API error:', error);
-      throw new Error('世界観の生成中にエラーが発生しました');
+      console.error('Generation error:', error);
+      throw error;
     }
   };
 
@@ -123,7 +74,6 @@ const StoryGenerator = () => {
       
     } catch (error) {
       console.error('Detailed save error:', error);
-      setError(error.message || 'データの保存中にエラーが発生しました');
       throw error;
     } finally {
       setIsSaving(false);
