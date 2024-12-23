@@ -12,6 +12,7 @@ const CharacterCreator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // キャラクター設定の生成
   const generateWithBedrock = async (promptText) => {
     try {
       const response = await httpClient.post('/generate', {
@@ -59,18 +60,35 @@ const CharacterCreator = () => {
     }
   };
 
+  // キャラクター詳細の抽出
   const extractCharacterDetails = (content) => {
-    const lines = content.split('\n').filter(line => line.trim());
-    const nameLine = lines.find(line => line.includes('キャラクター名'));
-    const name = nameLine ? nameLine.split(/[：:]/)[1]?.trim() : '無名';
-    
-    const description = lines.find(line => 
-      line.includes('基本設定：')
-    )?.replace(/^基本設定：/, '').trim() || '';
+    const sections = content.split('\n\n').filter(section => section.trim());
+    const details = {};
 
-    return { name, description };
+    sections.forEach(section => {
+      if (section.includes('キャラクター名：')) {
+        details.character_name = section.split('：')[1].trim();
+      } else if (section.startsWith('性格：')) {
+        details.personality = section.split('：')[1].trim();
+      } else if (section.startsWith('バックストーリー：') || section.startsWith('背景：')) {
+        details.background = section.split('：')[1].trim();
+      } else if (section.includes('外見') || section.includes('基本設定：')) {
+        details.appearance = section.split('：')[1].trim();
+      } else if (section.includes('人間関係：')) {
+        details.relationships = section.split('：')[1].trim();
+      } else if (section.includes('役割') || section.includes('立場')) {
+        details.role = section.split('：')[1].trim();
+      }
+    });
+
+    // 年齢の抽出（基本設定または外見から）
+    const ageMatch = details.appearance?.match(/(\d+)歳/);
+    details.age = ageMatch ? parseInt(ageMatch[1]) : null;
+
+    return details;
   };
 
+  // Supabaseへの保存
   const saveToSupabase = async (characterContent) => {
     if (!user) {
       throw new Error('ユーザーが認証されていません');
@@ -80,15 +98,21 @@ const CharacterCreator = () => {
     setSaveSuccess(false);
     
     try {
-      const { name, description } = extractCharacterDetails(characterContent);
+      const details = extractCharacterDetails(characterContent);
       
       const { data, error: saveError } = await supabase
         .from('character_settings')
         .insert([{
           user_id: user.id,
-          name,
-          description: characterContent,
-          created_at: new Date().toISOString()
+          character_name: details.character_name || '名前未設定',
+          age: details.age || null,
+          personality: details.personality || null,
+          background: details.background || null,
+          appearance: details.appearance || null,
+          role: details.role || null,
+          relationships: details.relationships || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }])
         .select();
 
@@ -108,6 +132,7 @@ const CharacterCreator = () => {
     }
   };
 
+  // フォーム送信ハンドラ
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -137,6 +162,7 @@ const CharacterCreator = () => {
     }
   };
 
+  // UI実装
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">キャラクター設定ジェネレーター</h1>
