@@ -62,29 +62,46 @@ const CharacterCreator = () => {
 
   // キャラクター詳細の抽出
   const extractCharacterDetails = (content) => {
+    console.log('Extracting details from:', content);
     const sections = content.split('\n\n').filter(section => section.trim());
-    const details = {};
+    console.log('Split sections:', sections);
+    
+    const details = {
+      character_name: '',
+      age: null,
+      personality: '',
+      background: '',
+      appearance: '',
+      role: '',
+      relationships: ''
+    };
 
     sections.forEach(section => {
-      if (section.includes('キャラクター名：')) {
-        details.character_name = section.split('：')[1].trim();
-      } else if (section.startsWith('性格：')) {
-        details.personality = section.split('：')[1].trim();
-      } else if (section.startsWith('バックストーリー：') || section.startsWith('背景：')) {
-        details.background = section.split('：')[1].trim();
-      } else if (section.includes('外見') || section.includes('基本設定：')) {
-        details.appearance = section.split('：')[1].trim();
-      } else if (section.includes('人間関係：')) {
-        details.relationships = section.split('：')[1].trim();
-      } else if (section.includes('役割') || section.includes('立場')) {
-        details.role = section.split('：')[1].trim();
+      const normalizedSection = section.trim();
+      console.log('Processing section:', normalizedSection);
+
+      if (normalizedSection.includes('キャラクター名：')) {
+        details.character_name = normalizedSection.split('：')[1].trim();
+      } else if (normalizedSection.startsWith('基本設定：')) {
+        const basicInfo = normalizedSection.split('：')[1].trim();
+        details.appearance = basicInfo;
+        // 年齢抽出
+        const ageMatch = basicInfo.match(/(\d+)歳/);
+        if (ageMatch) {
+          details.age = parseInt(ageMatch[1]);
+        }
+      } else if (normalizedSection.startsWith('性格：')) {
+        details.personality = normalizedSection.split('：')[1].trim();
+      } else if (normalizedSection.startsWith('バックストーリー：')) {
+        details.background = normalizedSection.split('：')[1].trim();
+      } else if (normalizedSection.startsWith('人間関係：')) {
+        details.relationships = normalizedSection.split('：')[1].trim();
+      } else if (normalizedSection.includes('役割') || normalizedSection.includes('立場')) {
+        details.role = normalizedSection.split('：')[1].trim();
       }
     });
 
-    // 年齢の抽出（基本設定または外見から）
-    const ageMatch = details.appearance?.match(/(\d+)歳/);
-    details.age = ageMatch ? parseInt(ageMatch[1]) : null;
-
+    console.log('Extracted details:', details);
     return details;
   };
 
@@ -98,19 +115,27 @@ const CharacterCreator = () => {
     setSaveSuccess(false);
     
     try {
+      console.log('Raw content to save:', characterContent);
       const details = extractCharacterDetails(characterContent);
-      
+      console.log('Details to save:', details);
+
+      // データの整合性チェック
+      if (!details.character_name) {
+        console.error('Character name extraction failed');
+        throw new Error('キャラクター名の抽出に失敗しました');
+      }
+
       const { data, error: saveError } = await supabase
         .from('character_settings')
         .insert([{
           user_id: user.id,
-          character_name: details.character_name || '名前未設定',
-          age: details.age || null,
-          personality: details.personality || null,
-          background: details.background || null,
-          appearance: details.appearance || null,
-          role: details.role || null,
-          relationships: details.relationships || null,
+          character_name: details.character_name,
+          age: details.age,
+          personality: details.personality,
+          background: details.background,
+          appearance: details.appearance,
+          role: details.role,
+          relationships: details.relationships,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -152,6 +177,7 @@ const CharacterCreator = () => {
 
     try {
       const generatedCharacter = await generateWithBedrock(prompt.trim());
+      console.log('Generated character:', generatedCharacter);
       setGeneratedContent(generatedCharacter);
       await saveToSupabase(generatedCharacter);
     } catch (error) {
