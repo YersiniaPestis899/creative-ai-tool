@@ -12,42 +12,33 @@ const CharacterCreator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // キャラクター設定の生成
+  // キャラクター設定の生成関数
   const generateWithBedrock = async (promptText) => {
     try {
-      console.log('Generating character with prompt:', promptText);
+      console.group('Character Generation Process');
+      console.log('Generating with prompt:', promptText);
+
       const response = await httpClient.post('/generate', {
-        prompt: `以下の要素に基づいて、魅力的なキャラクター設定を生成してください。
+        prompt: `以下の要素からキャラクター設定を生成してください：
 
-生成する際の注意点:
-- 独創的で印象的な個性を持たせる
-- 背景設定に一貫性を持たせる
-- 他のキャラクターとの関係性を考慮する
-- 成長の可能性を含める
+基本設定：${promptText}
 
-要素：${promptText}
+以下の形式で出力（各項目は厳密に守ること）：
 
-以下の形式で出力してください：
+1. 名前：[1行以内]
+2. 属性：[性別]、[年齢]歳
+3. 外見：[50字以内]
+4. 性格：[80字以内]
+5. 背景：[100字以内]
+6. 特徴：[50字以内]
 
-キャラクター名：[名前]
+制約条件：
+- 全体で300字以内
+- 各項目は指定の文字数を厳守
+- 簡潔かつ具体的に記述
+- 装飾的な説明は避ける
 
-基本設定：
-[性別、年齢、外見的特徴など]
-
-性格：
-[性格特性、価値観、行動パターンなど]
-
-バックストーリー：
-[生い立ち、重要な経験、現在の状況など]
-
-特殊能力/スキル：
-[特殊な力、得意分野、独自の技能など]
-
-人間関係：
-[重要な関係者との関係性、立場など]
-
-成長要素：
-[キャラクターの課題、可能性、変化の方向性など]`
+※要点を明確に、簡潔に記述すること`
       });
 
       if (!response.data.success) {
@@ -55,6 +46,7 @@ const CharacterCreator = () => {
       }
 
       console.log('Generated content:', response.data.data);
+      console.groupEnd();
       return response.data.data;
     } catch (error) {
       console.error('Generation error:', error);
@@ -62,16 +54,13 @@ const CharacterCreator = () => {
     }
   };
 
-  // キャラクター詳細の抽出
+  // キャラクター詳細の抽出関数
   const extractCharacterDetails = (content) => {
-    console.group('Character Data Extraction');
-    console.log('Input content:', content);
+    console.group('Data Extraction Process');
+    console.log('Raw content:', content);
 
-    // セクション単位での分割
-    const sections = content.split('\n\n');
-    console.log('Split sections:', sections);
-
-    let details = {
+    const sections = content.split('\n').filter(line => line.trim());
+    const details = {
       character_name: '',
       age: null,
       personality: '',
@@ -83,74 +72,70 @@ const CharacterCreator = () => {
 
     try {
       sections.forEach(section => {
-        const lines = section.split('\n');
-        const header = lines[0].trim();
-        const content = lines.slice(1).join('\n').trim();
-
-        console.log('Processing section:', { header, content });
-
-        if (header.startsWith('キャラクター名：')) {
-          details.character_name = header.replace('キャラクター名：', '').trim();
-        } else if (header === '基本設定：') {
-          details.appearance = content;
-          const ageMatch = content.match(/(\d+)歳/);
-          if (ageMatch) {
-            details.age = parseInt(ageMatch[1], 10);
+        const line = section.trim();
+        
+        if (line.match(/^1\.\s*名前：/)) {
+          details.character_name = line.split('：')[1].trim();
+        } else if (line.match(/^2\.\s*属性：/)) {
+          const match = line.match(/(\d+)歳/);
+          if (match) {
+            details.age = parseInt(match[1], 10);
           }
-        } else if (header === '性格：') {
-          details.personality = content;
-        } else if (header === 'バックストーリー：') {
-          details.background = content;
-        } else if (header === '人間関係：') {
-          details.relationships = content;
-        } else if (header.includes('役割') || header.includes('立場')) {
-          details.role = content;
+          details.role = line.split('：')[1].trim();
+        } else if (line.match(/^3\.\s*外見：/)) {
+          details.appearance = line.split('：')[1].trim();
+        } else if (line.match(/^4\.\s*性格：/)) {
+          details.personality = line.split('：')[1].trim();
+        } else if (line.match(/^5\.\s*背景：/)) {
+          details.background = line.split('：')[1].trim();
+        } else if (line.match(/^6\.\s*特徴：/)) {
+          details.relationships = line.split('：')[1].trim();
         }
       });
+
+      console.log('Extracted details:', details);
     } catch (error) {
-      console.error('Data extraction error:', error);
+      console.error('Extraction error:', error);
       throw new Error('キャラクター設定の解析に失敗しました');
     }
 
-    console.log('Extracted details:', details);
     console.groupEnd();
     return details;
   };
 
-  // Supabaseへの保存
+  // Supabaseへの保存関数
   const saveToSupabase = async (characterContent) => {
-    console.group('Character Save Operation');
     if (!user) {
       throw new Error('ユーザーが認証されていません');
     }
 
+    console.group('Data Save Process');
     setIsSaving(true);
     setSaveSuccess(false);
     
     try {
-      console.log('Step 1: Processing raw content:', characterContent);
+      console.log('Processing content for save:', characterContent);
       const details = extractCharacterDetails(characterContent);
-      console.log('Step 2: Extracted details:', details);
 
-      // 必須フィールドの検証
-      if (!details.character_name) {
-        throw new Error('キャラクター名の取得に失敗しました');
+      // データ検証
+      if (!details.character_name || !details.personality || !details.background) {
+        throw new Error('必要なキャラクター情報が不足しています');
       }
 
       const saveData = {
         user_id: user.id,
         character_name: details.character_name,
         age: details.age,
-        personality: details.personality || null,
-        background: details.background || null,
-        appearance: details.appearance || null,
-        role: details.role || null,
-        relationships: details.relationships || null,
+        personality: details.personality,
+        background: details.background,
+        appearance: details.appearance,
+        role: details.role,
+        relationships: details.relationships,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      console.log('Step 3: Data to save:', saveData);
+      console.log('Prepared save data:', saveData);
 
       const { data, error: saveError } = await supabase
         .from('character_settings')
@@ -162,7 +147,7 @@ const CharacterCreator = () => {
         throw saveError;
       }
 
-      console.log('Step 4: Save successful:', data);
+      console.log('Save successful:', data);
       setSaveSuccess(true);
       
     } catch (error) {
@@ -177,7 +162,7 @@ const CharacterCreator = () => {
   // フォーム送信ハンドラ
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.group('Form Submission');
+    console.group('Form Submission Process');
 
     if (!user) {
       setError('ログインが必要です');
@@ -194,18 +179,15 @@ const CharacterCreator = () => {
     setSaveSuccess(false);
 
     try {
-      console.log('Starting character generation...');
+      console.log('Starting character generation process');
       const generatedCharacter = await generateWithBedrock(prompt.trim());
-      console.log('Character generated successfully');
       
       setGeneratedContent(generatedCharacter);
-      console.log('Starting save operation...');
+      console.log('Starting save process');
       
       await saveToSupabase(generatedCharacter);
-      console.log('Save operation completed');
-      
     } catch (error) {
-      console.error('Operation failed:', error);
+      console.error('Process failed:', error);
       setError(error.message || 'キャラクター設定の生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
@@ -220,7 +202,7 @@ const CharacterCreator = () => {
       
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
         <p className="text-yellow-700">
-          このツールは魅力的なキャラクター設定を生成するためのものです。性格、バックストーリー、特殊能力など、キャラクターの詳細な設定を出力します。
+          このツールはキャラクター設定を生成するためのものです。性格、背景、特徴などの基本的な設定を簡潔に出力します。
         </p>
       </div>
 
@@ -242,8 +224,7 @@ const CharacterCreator = () => {
 - 20代後半の女性科学者
 - 天才的な頭脳を持つが社交性に難あり
 - 幼少期のトラウマを抱えている
-- 特殊な実験に関わっている
-..."
+- 特殊な実験に関わっている"
           />
         </div>
 
