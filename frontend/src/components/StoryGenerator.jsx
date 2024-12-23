@@ -14,7 +14,7 @@ const StoryGenerator = () => {
 
   const generateWithBedrock = async (promptText) => {
     try {
-      const response = await axios.post('https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke', {
+      const response = await axios.post('https://fs712ju5nl.execute-api.us-west-2.amazonaws.com', {
         modelId: "anthropic.claude-3-5-sonnet-20241022-v2:0",
         contentType: "application/json",
         accept: "application/json",
