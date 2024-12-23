@@ -1,376 +1,215 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { characterTemplates } from '../data/characterTemplates';
-import { supabase } from '../lib/supabase';
-
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+import { supabase } from '../lib/auth';
+import { useAuth } from '../lib/auth';
+import httpClient from '../lib/httpClient';
 
 const CharacterCreator = () => {
+  const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [generatedContent, setGeneratedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [generatedCharacter, setGeneratedCharacter] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const resetForm = () => {
-    setPrompt('');
-    setSelectedTemplate('');
-    setError(null);
+  const generateWithBedrock = async (promptText) => {
+    try {
+      const response = await httpClient.post('/generate', {
+        prompt: `以下の要素に基づいて、魅力的なキャラクター設定を生成してください。
+
+生成する際の注意点:
+- 独創的で印象的な個性を持たせる
+- 背景設定に一貫性を持たせる
+- 他のキャラクターとの関係性を考慮する
+- 成長の可能性を含める
+
+要素：${promptText}
+
+以下の形式で出力してください：
+
+キャラクター名：[名前]
+
+基本設定：
+[性別、年齢、外見的特徴など]
+
+性格：
+[性格特性、価値観、行動パターンなど]
+
+バックストーリー：
+[生い立ち、重要な経験、現在の状況など]
+
+特殊能力/スキル：
+[特殊な力、得意分野、独自の技能など]
+
+人間関係：
+[重要な関係者との関係性、立場など]
+
+成長要素：
+[キャラクターの課題、可能性、変化の方向性など]`
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || '生成に失敗しました');
+      }
+
+      return response.data.data;
+    } catch (error) {
+      console.error('Generation error:', error);
+      throw error;
+    }
   };
 
-  const generateCharacterPrompt = () => {
-    const template = selectedTemplate 
-      ? characterTemplates.find(t => t.id === selectedTemplate)?.template 
-      : '';
-    
-    return `${template}
-    ${prompt}
-    
-    キャラクターの詳細な設定を作成してください。
-    以下の情報を含めて回答してください：
-    - 名前と基本的な属性
-    - 性格特性
-    - 経歴
-    - 目標と動機
-    - 外見的特徴（髪型、髪の色、目の色、服装など、できるだけ具体的に）
-    - 特殊能力やスキル（該当する場合）
-    - 重要な人間関係
-    
-    できるだけ具体的に、物語に組み込みやすい形で設定を作成してください。`;
-  };
-
-  const extractCharacterFeatures = (content) => {
+  const extractCharacterDetails = (content) => {
     const lines = content.split('\n').filter(line => line.trim());
-    let features = [];
+    const nameLine = lines.find(line => line.includes('キャラクター名'));
+    const name = nameLine ? nameLine.split(/[：:]/)[1]?.trim() : '無名';
+    
+    const description = lines.find(line => 
+      line.includes('基本設定：')
+    )?.replace(/^基本設定：/, '').trim() || '';
 
-    // 外見的特徴を含む行を探す
-    const appearanceLines = lines.filter(line => 
-      line.includes('外見的特徴') || 
-      line.includes('髪') || 
-      line.includes('目') || 
-      line.includes('服')
-    );
+    return { name, description };
+  };
 
-    // 各行から特徴を抽出
-    appearanceLines.forEach(line => {
-      // 髪の色
-      if (line.includes('ピンク')) features.push('pink hair');
-      else if (line.includes('金')) features.push('blonde hair');
-      else if (line.includes('赤')) features.push('red hair');
-      else if (line.includes('青')) features.push('blue hair');
-      else if (line.includes('緑')) features.push('green hair');
-      else if (line.includes('黒')) features.push('black hair');
-      else if (line.includes('茶')) features.push('brown hair');
+  const saveToSupabase = async (characterContent) => {
+    if (!user) {
+      throw new Error('ユーザーが認証されていません');
+    }
 
-      // 髪型
-      if (line.includes('ツインテール')) features.push('twin tails');
-      if (line.includes('ポニーテール')) features.push('ponytail');
-      if (line.includes('ショート')) features.push('short hair');
-      if (line.includes('ロング')) features.push('long hair');
-      if (line.includes('三つ編み')) features.push('braid');
-      if (line.includes('お団子')) features.push('hair bun');
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    try {
+      const { name, description } = extractCharacterDetails(characterContent);
+      
+      const { data, error: saveError } = await supabase
+        .from('character_settings')
+        .insert([{
+          user_id: user.id,
+          name,
+          description: characterContent,
+          created_at: new Date().toISOString()
+        }])
+        .select();
 
-      // 目の色
-      if (line.includes('紫色の目') || line.includes('紫の目')) features.push('purple eyes');
-      else if (line.includes('青い目') || line.includes('青目')) features.push('blue eyes');
-      else if (line.includes('赤い目') || line.includes('赤目')) features.push('red eyes');
-      else if (line.includes('緑の目')) features.push('green eyes');
-      else if (line.includes('茶色の目') || line.includes('茶色目')) features.push('brown eyes');
+      if (saveError) {
+        console.error('Save error details:', saveError);
+        throw saveError;
+      }
 
-      // 服装
-      if (line.includes('セーラー服')) features.push('sailor uniform');
-      if (line.includes('制服')) features.push('school uniform');
-      if (line.includes('ワンピース')) features.push('dress');
-
-      // その他の特徴
-      if (line.includes('メガネ')) features.push('glasses');
-      if (line.includes('そばかす')) features.push('freckles');
-      if (line.includes('リボン')) features.push('ribbon');
-    });
-
-    // 重複を除去
-    features = [...new Set(features)];
-    return features;
+      setSaveSuccess(true);
+      console.log('Character saved successfully:', data);
+      
+    } catch (error) {
+      console.error('Detailed save error:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!user) {
+      setError('ログインが必要です');
+      return;
+    }
+
+    if (!prompt.trim()) {
+      setError('キャラクター設定の要素を入力してください');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+    setSaveSuccess(false);
 
     try {
-      // キャラクター生成
-      const characterResponse = await axios.post(`${API_URL}/generate`, {
-        prompt: generateCharacterPrompt(),
-        type: 'character'
-      });
-
-      if (!characterResponse.data.success) {
-        throw new Error('キャラクター生成に失敗しました');
-      }
-
-      const generatedContent = characterResponse.data.data;
-      const lines = generatedContent.split('\n').filter(line => line.trim());
-      const name = lines.find(line => line.includes('名前'))?.split('：')[1]?.trim() || '名前未設定';
-      const description = lines.find(line => line.includes('外見'))?.split('：')[1]?.trim() || '説明なし';
-
-      // キャラクター情報をステートに保存
-      const newCharacter = {
-        name,
-        description,
-        generatedContent,
-        imageUrl: null
-      };
-      
-      setGeneratedCharacter(newCharacter);
-
-      // Supabaseに保存
-      try {
-        const { error: saveError } = await supabase
-          .from('characters')
-          .insert([{
-            name: newCharacter.name,
-            description: newCharacter.description,
-            generated_content: newCharacter.generatedContent,
-            image_url: newCharacter.imageUrl
-          }]);
-
-        if (saveError) {
-          console.error('保存エラー:', saveError);
-        }
-      } catch (saveError) {
-        console.error('キャラクター保存エラー:', saveError);
-      }
-
-      // フォームをリセット
-      resetForm();
+      const generatedCharacter = await generateWithBedrock(prompt.trim());
+      setGeneratedContent(generatedCharacter);
+      await saveToSupabase(generatedCharacter);
     } catch (error) {
-      console.error('Error:', error);
-      setError(error.response?.data?.error || error.message);
+      console.error('設定生成エラー:', error);
+      setError(error.message || 'キャラクター設定の生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCreateNew = () => {
-    setGeneratedCharacter(null);
-    resetForm();
-  };
-
-  const handleGenerateImage = async () => {
-    if (!generatedCharacter) return;
-    setIsGeneratingImage(true);
-    setError(null);
-
-    try {
-      const features = extractCharacterFeatures(generatedCharacter.generatedContent);
-      console.log('Extracted features:', features);
-
-      const imagePrompt = `${generatedCharacter.description}, beautiful anime girl, ${features.join(', ')}, 
-        best quality masterpiece, ultra high res, detailed face, perfect anatomy,
-        expressive eyes, detailed shading, dynamic lighting, trending on artstation,
-        professional digital art`;
-
-      console.log('Image generation prompt:', imagePrompt);
-
-      const imageResponse = await axios.post(`${API_URL}/generate-image`, {
-        prompt: imagePrompt
-      });
-
-      if (!imageResponse.data.success) {
-        throw new Error('画像生成に失敗しました');
-      }
-
-      const imageUrl = `data:image/jpeg;base64,${imageResponse.data.data}`;
-
-      // ステート更新
-      setGeneratedCharacter(prev => ({
-        ...prev,
-        imageUrl
-      }));
-
-      // Supabaseの画像URLを更新
-      try {
-        const { error: updateError } = await supabase
-          .from('characters')
-          .update({ image_url: imageUrl })
-          .eq('name', generatedCharacter.name)
-          .eq('generated_content', generatedCharacter.generatedContent);
-
-        if (updateError) {
-          console.error('画像URL更新エラー:', updateError);
-        }
-      } catch (updateError) {
-        console.error('画像URL更新エラー:', updateError);
-      }
-
-    } catch (error) {
-      console.error('Error:', error);
-      setError(error.response?.data?.error || error.message);
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
-  const openImageInNewTab = (imageUrl) => {
-    const newTab = window.open();
-    if (newTab) {
-      newTab.document.write(`
-        <html>
-          <head>
-            <title>Generated Character Image</title>
-            <style>
-              body {
-                margin: 0;
-                display: flex;
-                justify-center: center;
-                align-items: center;
-                min-height: 100vh;
-                background: #f0f0f0;
-              }
-              img {
-                max-width: 100%;
-                max-height: 100vh;
-                object-fit: contain;
-              }
-            </style>
-          </head>
-          <body>
-            <img src="${imageUrl}" alt="Generated Character">
-          </body>
-        </html>
-      `);
-      newTab.document.close();
-    }
-  };
-
   return (
-    <div className="max-w-4xl mx-auto">
-      {!generatedCharacter ? (
-        <>
-          <h1 className="text-3xl font-bold mb-8">AIキャラクター作成</h1>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                テンプレートを選択
-              </label>
-              <select
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                <option value="">テンプレートを選択してください</option>
-                {characterTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} - {template.description}
-                  </option>
-                ))}
-              </select>
-            </div>
+    <div className="max-w-4xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-8">キャラクター設定ジェネレーター</h1>
+      
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+        <p className="text-yellow-700">
+          このツールは魅力的なキャラクター設定を生成するためのものです。性格、バックストーリー、特殊能力など、キャラクターの詳細な設定を出力します。
+        </p>
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                キャラクターの設定
-              </label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                rows="6"
-                placeholder="キャラクターの特徴や設定を入力してください..."
-              />
-              <p className="mt-2 text-sm text-gray-500">
-                テンプレートを選択するか、自由に設定を入力してください。両方選択することもできます。
-              </p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label htmlFor="prompt" className="block text-lg font-medium text-gray-700 mb-2">
+            キャラクター設定の要素
+          </label>
+          <p className="text-sm text-gray-600 mb-2">
+            含めたい要素（性別、年齢、職業、特徴など）を自由に入力してください。
+          </p>
+          <textarea
+            id="prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            rows="6"
+            placeholder="例：
+- 20代後半の女性科学者
+- 天才的な頭脳を持つが社交性に難あり
+- 幼少期のトラウマを抱えている
+- 特殊な実験に関わっている
+..."
+          />
+        </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  生成中...
-                </>
-              ) : (
-                'キャラクターを生成'
-              )}
-            </button>
-
-            {error && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-600">{error}</p>
-              </div>
-            )}
-          </form>
-        </>
-      ) : (
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{generatedCharacter.name}</h2>
-            <button
-              onClick={handleCreateNew}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              新しいキャラクターを作成
-            </button>
-          </div>
-          
-          {!generatedCharacter.imageUrl ? (
-            <div className="flex justify-center">
-              <button
-                onClick={handleGenerateImage}
-                disabled={isGeneratingImage}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-              >
-                {isGeneratingImage ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    イラスト生成中...
-                  </>
-                ) : (
-                  'イラストを生成'
-                )}
-              </button>
-            </div>
+        <button
+          type="submit"
+          disabled={isLoading || isSaving || !user}
+          className="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-lg font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+        >
+          {isLoading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              生成中...
+            </>
+          ) : isSaving ? (
+            '保存中...'
+          ) : !user ? (
+            'ログインが必要です'
           ) : (
-            <div className="space-y-2">
-              <div className="relative w-full h-[512px]">
-                <img
-                  src={generatedCharacter.imageUrl}
-                  alt={generatedCharacter.name}
-                  className="absolute inset-0 w-full h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => openImageInNewTab(generatedCharacter.imageUrl)}
-                />
-              </div>
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-500">
-                  画像をクリックすると新しいタブで開きます
-                </p>
-                <button
-                  onClick={handleGenerateImage}
-                  disabled={isGeneratingImage}
-                  className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                >
-                  {isGeneratingImage ? '生成中...' : '再生成'}
-                </button>
-              </div>
-            </div>
+            'キャラクター設定を生成'
           )}
+        </button>
+      </form>
 
-          <div>
-            <h3 className="text-lg font-semibold mb-2">キャラクター設定</h3>
-            <p className="whitespace-pre-wrap">{generatedCharacter.generatedContent}</p>
+      {error && (
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {saveSuccess && (
+        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
+          <p className="text-green-600">キャラクター設定が正常に保存されました</p>
+        </div>
+      )}
+
+      {generatedContent && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-semibold mb-4">生成されたキャラクター設定</h2>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <p className="whitespace-pre-wrap">{generatedContent}</p>
           </div>
         </div>
       )}
