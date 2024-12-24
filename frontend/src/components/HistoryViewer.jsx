@@ -5,6 +5,8 @@ import { useAuth } from '../lib/auth';
 const HistoryViewer = () => {
   const { user } = useAuth();
   const [characters, setCharacters] = useState([]);
+  const [stories, setStories] = useState([]);
+  const [activeTab, setActiveTab] = useState('characters');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -13,14 +15,16 @@ const HistoryViewer = () => {
     try {
       console.group('History Fetch Operation');
       console.log('Fetching history for user:', user?.id);
+      console.log('Active tab:', activeTab);
 
       if (!user) {
         throw new Error('ユーザーが認証されていません');
       }
 
+      const tableName = activeTab === 'characters' ? 'character_settings' : 'story_settings';
       const { data, error: fetchError } = await supabase
-        .from('character_settings')
-        .select(`
+        .from(tableName)
+        .select(activeTab === 'characters' ? `
           id,
           character_name,
           age,
@@ -29,6 +33,13 @@ const HistoryViewer = () => {
           appearance,
           role,
           relationships,
+          created_at
+        ` : `
+          id,
+          title,
+          setting_prompt,
+          world_building,
+          summary,
           created_at
         `)
         .eq('user_id', user.id)
@@ -41,17 +52,15 @@ const HistoryViewer = () => {
         throw fetchError;
       }
 
-      // データの加工と検証
-      const processedData = data.map(character => {
-        console.log('Processing character:', character);
-        return {
+      if (activeTab === 'characters') {
+        const processedData = data.map(character => ({
           ...character,
           isValid: !!(character.character_name && character.personality && character.background)
-        };
-      });
-
-      console.log('Processed Data:', processedData);
-      setCharacters(processedData);
+        }));
+        setCharacters(processedData);
+      } else {
+        setStories(data || []);
+      }
 
     } catch (error) {
       console.error('History fetch error:', error);
@@ -62,10 +71,10 @@ const HistoryViewer = () => {
     }
   };
 
-  // 初期データ取得
+  // タブ変更時とユーザー変更時にデータを取得
   useEffect(() => {
     fetchHistory();
-  }, [user]);
+  }, [activeTab, user]);
 
   // 日付フォーマット関数
   const formatDate = (dateString) => {
@@ -82,7 +91,33 @@ const HistoryViewer = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <h2 className="text-2xl font-bold mb-6">作成履歴</h2>
-      
+
+      {/* タブナビゲーション */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex -mb-px">
+          <button
+            onClick={() => setActiveTab('characters')}
+            className={`mr-8 py-4 px-1 ${
+              activeTab === 'characters'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } font-medium text-sm`}
+          >
+            キャラクター
+          </button>
+          <button
+            onClick={() => setActiveTab('stories')}
+            className={`py-4 px-1 ${
+              activeTab === 'stories'
+                ? 'border-b-2 border-indigo-500 text-indigo-600'
+                : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } font-medium text-sm`}
+          >
+            ストーリー
+          </button>
+        </nav>
+      </div>
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{error}</p>
@@ -93,7 +128,7 @@ const HistoryViewer = () => {
         <div className="flex justify-center items-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
         </div>
-      ) : (
+      ) : activeTab === 'characters' ? (
         <div className="space-y-6">
           {characters.length > 0 ? (
             characters.map((character) => (
@@ -155,6 +190,26 @@ const HistoryViewer = () => {
           ) : (
             <p className="text-center text-gray-500">
               キャラクター設定の履歴がありません
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {stories.length > 0 ? (
+            stories.map((story) => (
+              <div key={story.id} className="bg-white shadow rounded-lg p-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">{story.title || '無題'}</h3>
+                  <p className="text-sm text-gray-500">{formatDate(story.created_at)}</p>
+                </div>
+                <div className="prose max-w-none">
+                  <p className="text-gray-700 whitespace-pre-wrap">{story.world_building}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">
+              ストーリー設定の履歴がありません
             </p>
           )}
         </div>
