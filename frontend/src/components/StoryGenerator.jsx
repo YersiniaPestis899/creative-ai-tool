@@ -14,31 +14,14 @@ const StoryGenerator = () => {
 
   const generateWithBedrock = async (promptText) => {
     try {
-      console.log('Generating story with prompt:', promptText);
       const response = await httpClient.post('/generate', {
-        prompt: `世界観設定を以下の形式で簡潔に生成してください：
-
-タイトル：[20文字以内]
-
-世界観の核：
-[この世界の最も重要な特徴を50文字以内で]
-
-主要な要素：
-- 場所：[30文字以内]
-- 文化：[30文字以内]
-- 対立：[30文字以内]
-- 特徴：[30文字以内]
-
-※すべての要素は具体的かつ簡潔に記述し、合計200文字以内に収めること。
-
-要素：${promptText}`
+        prompt: promptText
       });
 
       if (!response.data.success) {
         throw new Error(response.data.error || '生成に失敗しました');
       }
 
-      console.log('Generated content:', response.data.data);
       return response.data.data;
     } catch (error) {
       console.error('Generation error:', error);
@@ -47,27 +30,15 @@ const StoryGenerator = () => {
   };
 
   const extractSettingDetails = (content) => {
-    const sections = content.split('\n\n').filter(section => section.trim());
-    let details = {
-      title: '',
-      summary: '',
-      content: content
-    };
+    const lines = content.split('\n').filter(line => line.trim());
+    const titleLine = lines.find(line => line.includes('設定タイトル'));
+    const title = titleLine ? titleLine.split(/[：:]/)[1]?.trim() : '無題';
+    
+    const summary = lines.find(line => 
+      line.includes('世界観：')
+    )?.replace(/^世界観：/, '').trim() || '';
 
-    try {
-      sections.forEach(section => {
-        if (section.startsWith('タイトル：')) {
-          details.title = section.split('：')[1].trim();
-        } else if (section.includes('世界観の核：')) {
-          details.summary = section.split('：')[1].trim();
-        }
-      });
-
-      return details;
-    } catch (error) {
-      console.error('Extraction error:', error);
-      throw new Error('設定の解析に失敗しました');
-    }
+    return { title, summary };
   };
 
   const saveToSupabase = async (worldBuildingContent) => {
@@ -79,31 +50,30 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
     
     try {
-      console.log('Processing content for save:', worldBuildingContent);
-      const details = extractSettingDetails(worldBuildingContent);
+      const { title, summary } = extractSettingDetails(worldBuildingContent);
       
       const { data, error: saveError } = await supabase
         .from('story_settings')
         .insert([{
           user_id: user.id,
-          title: details.title || '無題',
+          title,
           setting_prompt: prompt,
           world_building: worldBuildingContent,
-          summary: details.summary,
+          summary,
           created_at: new Date().toISOString()
         }])
         .select();
 
       if (saveError) {
-        console.error('Save error:', saveError);
+        console.error('Save error details:', saveError);
         throw saveError;
       }
 
-      console.log('Settings saved successfully:', data);
       setSaveSuccess(true);
+      console.log('Settings saved successfully:', data);
       
     } catch (error) {
-      console.error('Save operation failed:', error);
+      console.error('Detailed save error:', error);
       throw error;
     } finally {
       setIsSaving(false);
@@ -128,12 +98,11 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
 
     try {
-      console.log('Starting story generation...');
-      const generatedWorld = await generateWithBedrock(prompt.trim());
-      setGeneratedContent(generatedWorld);
-      await saveToSupabase(generatedWorld);
+      const generatedWorldBuilding = await generateWithBedrock(prompt.trim());
+      setGeneratedContent(generatedWorldBuilding);
+      await saveToSupabase(generatedWorldBuilding);
     } catch (error) {
-      console.error('Generation error:', error);
+      console.error('設定生成エラー:', error);
       setError(error.message || '設定の生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
@@ -146,7 +115,7 @@ const StoryGenerator = () => {
       
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
         <p className="text-yellow-700">
-          このツールは物語の世界観や設定を生成するためのものです。キーとなる要素を入力することで、簡潔な世界観を生成します。
+          このツールは物語の世界観や設定を生成するためのものです。キャラクター間の関係性、世界の仕組み、重要な背景設定などを詳細に出力します。
         </p>
       </div>
 
@@ -168,7 +137,8 @@ const StoryGenerator = () => {
 - 未来の宇宙開拓時代
 - 人工知能と人類の共存
 - 古代文明の遺産が重要な役割を果たす
-- 複数の惑星間での政治的対立"
+- 複数の惑星間での政治的対立
+..."
           />
         </div>
 
