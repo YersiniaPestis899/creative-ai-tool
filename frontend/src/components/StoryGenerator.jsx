@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/auth';
 import { useAuth } from '../lib/auth';
 import httpClient from '../lib/httpClient';
+import StoryGenerationControls from './StoryGenerationControls';
 
 const StoryGenerator = () => {
   const { user } = useAuth();
@@ -140,6 +141,15 @@ const StoryGenerator = () => {
     }
   };
 
+  const handleClear = () => {
+    if (window.confirm('生成された内容をクリアしてもよろしいですか？')) {
+      setGeneratedContent('');
+      setPrompt('');
+      setError(null);
+      setSaveSuccess(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">物語世界観・設定ジェネレーター</h1>
@@ -212,6 +222,10 @@ const StoryGenerator = () => {
           <h2 className="text-2xl font-semibold mb-4">生成された世界観・設定</h2>
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="whitespace-pre-wrap">{generatedContent}</p>
+            <StoryGenerationControls 
+              result={generatedContent}
+              onClear={handleClear}
+            />
           </div>
         </div>
       )}
