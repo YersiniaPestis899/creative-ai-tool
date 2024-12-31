@@ -21,7 +21,7 @@ const CharacterCreator = () => {
         return await executeWithTimeout(async () => {
           console.log(`Processing attempt ${attempt + 1}`);
           return data;
-        }, 45000); // 45秒タイムアウト
+        }, 45000);
       } catch (error) {
         attempt++;
         console.error(`Attempt ${attempt} failed:`, error);
@@ -41,7 +41,7 @@ const CharacterCreator = () => {
     ]);
   };
 
-  // キャラクター設定の生成関数
+  // 改善されたキャラクター設定の生成関数
   const generateWithBedrock = async (promptText) => {
     try {
       console.group('Character Generation Process');
@@ -83,12 +83,16 @@ const CharacterCreator = () => {
     }
   };
 
-  // キャラクター詳細の抽出関数
+  // 強化されたキャラクター詳細の抽出関数
   const extractCharacterDetails = (content) => {
     console.group('Data Extraction Process');
     console.log('Raw content:', content);
 
-    const sections = content.split('\n').filter(line => line.trim());
+    // より正確な行分割
+    const sections = content.split('\n')
+      .filter(line => line.trim())
+      .map(line => line.trim());
+
     const details = {
       character_name: '',
       age: null,
@@ -100,39 +104,50 @@ const CharacterCreator = () => {
     };
 
     try {
-      sections.forEach(section => {
-        const line = section.trim();
-        
-        if (line.match(/^1\.\s*名前：/)) {
-          details.character_name = line.split('：')[1].trim();
-        } else if (line.match(/^2\.\s*属性：/)) {
+      sections.forEach(line => {
+        // 改善された正規表現マッチング
+        if (line.match(/^1\.?\s*名前[:：]/)) {
+          details.character_name = line.split(/[:：]/)[1]?.trim() || '';
+        } else if (line.match(/^2\.?\s*属性[:：]/)) {
           const match = line.match(/(\d+)歳/);
           if (match) {
             details.age = parseInt(match[1], 10);
           }
-          details.role = line.split('：')[1].trim();
-        } else if (line.match(/^3\.\s*外見：/)) {
-          details.appearance = line.split('：')[1].trim();
-        } else if (line.match(/^4\.\s*性格：/)) {
-          details.personality = line.split('：')[1].trim();
-        } else if (line.match(/^5\.\s*背景：/)) {
-          details.background = line.split('：')[1].trim();
-        } else if (line.match(/^6\.\s*特徴：/)) {
-          details.relationships = line.split('：')[1].trim();
+          details.role = line.split(/[:：]/)[1]?.trim() || '';
+        } else if (line.match(/^3\.?\s*外見[:：]/)) {
+          details.appearance = line.split(/[:：]/)[1]?.trim() || '';
+        } else if (line.match(/^4\.?\s*性格[:：]/)) {
+          details.personality = line.split(/[:：]/)[1]?.trim() || '';
+        } else if (line.match(/^5\.?\s*背景[:：]/)) {
+          details.background = line.split(/[:：]/)[1]?.trim() || '';
+        } else if (line.match(/^6\.?\s*特徴[:：]/)) {
+          details.relationships = line.split(/[:：]/)[1]?.trim() || '';
         }
       });
 
+      // バリデーションの強化
+      const missingFields = [];
+      if (!details.character_name) missingFields.push('名前');
+      if (!details.personality) missingFields.push('性格');
+      if (!details.background) missingFields.push('背景');
+
       console.log('Extracted details:', details);
+      console.log('Validation check - Missing fields:', missingFields);
+
+      if (missingFields.length > 0) {
+        throw new Error(`以下の情報が不足しています: ${missingFields.join(', ')}`);
+      }
+
+      console.groupEnd();
+      return details;
     } catch (error) {
       console.error('Extraction error:', error);
-      throw new Error('キャラクター設定の解析に失敗しました');
+      console.groupEnd();
+      throw error;
     }
-
-    console.groupEnd();
-    return details;
   };
 
-  // Supabaseへの最適化された保存関数
+  // 最適化されたSupabase保存関数
   const saveToSupabase = async (characterContent) => {
     if (!user) {
       throw new Error('ユーザーが認証されていません');
@@ -146,11 +161,6 @@ const CharacterCreator = () => {
       const processedContent = await processLargeData(characterContent);
       console.log('Processing content for save:', processedContent);
       const details = extractCharacterDetails(processedContent);
-
-      // データ検証の強化
-      if (!details.character_name || !details.personality || !details.background) {
-        throw new Error('必要なキャラクター情報が不足しています');
-      }
 
       const saveData = {
         user_id: user.id,
@@ -223,7 +233,11 @@ const CharacterCreator = () => {
       await saveToSupabase(generatedCharacter);
     } catch (error) {
       console.error('Process failed:', error);
-      setError(error.message || 'キャラクター設定の生成中にエラーが発生しました。もう一度お試しください。');
+      // エラーメッセージの最適化
+      const errorMessage = error.message.includes('不足') 
+        ? error.message 
+        : 'キャラクター設定の生成中にエラーが発生しました。もう一度お試しください。';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
       console.groupEnd();
