@@ -13,6 +13,26 @@ const CharacterCreator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // プロンプトの前処理関数
+  const preprocessPrompt = (input) => {
+    const sections = input
+      .split(/[*・]/)
+      .filter(s => s.trim())
+      .map(s => s.trim());
+
+    const formattedSections = sections.map(section => {
+      // "名前: " のような形式を処理
+      if (section.includes(':')) {
+        const [key, ...valueParts] = section.split(':');
+        return `${key.trim()}：${valueParts.join(':').trim()}`;
+      }
+      // その他のフォーマットを処理
+      return section;
+    });
+
+    return formattedSections.join('\n');
+  };
+
   // データ処理の最適化関数
   const processLargeData = async (data, maxAttempts = 3) => {
     let attempt = 0;
@@ -45,29 +65,32 @@ const CharacterCreator = () => {
   const generateWithBedrock = async (promptText) => {
     try {
       console.group('Character Generation Process');
-      console.log('Generating with prompt:', promptText);
+      console.log('Original prompt:', promptText);
+      const processedPrompt = preprocessPrompt(promptText);
+      console.log('Processed prompt:', processedPrompt);
 
       const response = await httpClient.post('/generate', {
-        prompt: `以下の要素からキャラクター設定を生成してください：
+        prompt: `以下の要素から、必ず指定された形式でキャラクター設定を生成してください。
+形式を厳守することが最も重要です。
 
-基本設定：${promptText}
+入力データ：
+${processedPrompt}
 
-以下の形式で出力（各項目は厳密に守ること）：
+以下の形式で出力してください（この形式は必須です）：
 
-1. 名前：[1行以内]
+1. 名前：[キャラクターの名前を1行で]
 2. 属性：[性別]、[年齢]歳
-3. 外見：[50字以内]
-4. 性格：[80字以内]
-5. 背景：[100字以内]
-6. 特徴：[50字以内]
+3. 外見：[外見的特徴を50字以内で]
+4. 性格：[性格や価値観を80字以内で]
+5. 背景：[経歴や背景を100字以内で]
+6. 特徴：[特殊能力や際立った特徴を50字以内で]
 
-制約条件：
-- 全体で300字以内
-- 各項目は指定の文字数を厳守
-- 簡潔かつ具体的に記述
-- 装飾的な説明は避ける
-
-※要点を明確に、簡潔に記述すること`
+注意事項：
+- 必ず上記の番号付き形式で出力すること
+- 各項目は必須です
+- コロン（：）は全角を使用すること
+- 自由形式の文章は受け付けません
+- ストーリー形式での出力は避けること`
       });
 
       if (!response.data.success) {
@@ -88,8 +111,9 @@ const CharacterCreator = () => {
     console.group('Data Extraction Process');
     console.log('Raw content:', content);
 
-    // より正確な行分割
-    const sections = content.split('\n')
+    // より柔軟な行分割
+    const sections = content
+      .split('\n')
       .filter(line => line.trim())
       .map(line => line.trim());
 
@@ -106,22 +130,29 @@ const CharacterCreator = () => {
     try {
       sections.forEach(line => {
         // 改善された正規表現マッチング
-        if (line.match(/^1\.?\s*名前[:：]/)) {
-          details.character_name = line.split(/[:：]/)[1]?.trim() || '';
-        } else if (line.match(/^2\.?\s*属性[:：]/)) {
-          const match = line.match(/(\d+)歳/);
-          if (match) {
-            details.age = parseInt(match[1], 10);
+        const nameMatch = line.match(/^1\.?\s*名前[:：](.+)/);
+        const attrMatch = line.match(/^2\.?\s*属性[:：](.+)/);
+        const appearanceMatch = line.match(/^3\.?\s*外見[:：](.+)/);
+        const personalityMatch = line.match(/^4\.?\s*性格[:：](.+)/);
+        const backgroundMatch = line.match(/^5\.?\s*背景[:：](.+)/);
+        const traitsMatch = line.match(/^6\.?\s*特徴[:：](.+)/);
+
+        if (nameMatch) {
+          details.character_name = nameMatch[1].trim();
+        } else if (attrMatch) {
+          const ageMatch = attrMatch[1].match(/(\d+)歳/);
+          if (ageMatch) {
+            details.age = parseInt(ageMatch[1], 10);
           }
-          details.role = line.split(/[:：]/)[1]?.trim() || '';
-        } else if (line.match(/^3\.?\s*外見[:：]/)) {
-          details.appearance = line.split(/[:：]/)[1]?.trim() || '';
-        } else if (line.match(/^4\.?\s*性格[:：]/)) {
-          details.personality = line.split(/[:：]/)[1]?.trim() || '';
-        } else if (line.match(/^5\.?\s*背景[:：]/)) {
-          details.background = line.split(/[:：]/)[1]?.trim() || '';
-        } else if (line.match(/^6\.?\s*特徴[:：]/)) {
-          details.relationships = line.split(/[:：]/)[1]?.trim() || '';
+          details.role = attrMatch[1].trim();
+        } else if (appearanceMatch) {
+          details.appearance = appearanceMatch[1].trim();
+        } else if (personalityMatch) {
+          details.personality = personalityMatch[1].trim();
+        } else if (backgroundMatch) {
+          details.background = backgroundMatch[1].trim();
+        } else if (traitsMatch) {
+          details.relationships = traitsMatch[1].trim();
         }
       });
 
@@ -233,8 +264,7 @@ const CharacterCreator = () => {
       await saveToSupabase(generatedCharacter);
     } catch (error) {
       console.error('Process failed:', error);
-      // エラーメッセージの最適化
-      const errorMessage = error.message.includes('不足') 
+      const errorMessage = error.message.includes('情報が不足') 
         ? error.message 
         : 'キャラクター設定の生成中にエラーが発生しました。もう一度お試しください。';
       setError(errorMessage);
