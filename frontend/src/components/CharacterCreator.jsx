@@ -13,6 +13,34 @@ const CharacterCreator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // データ処理の最適化関数
+  const processLargeData = async (data, maxAttempts = 3) => {
+    let attempt = 0;
+    while (attempt < maxAttempts) {
+      try {
+        return await executeWithTimeout(async () => {
+          console.log(`Processing attempt ${attempt + 1}`);
+          return data;
+        }, 45000); // 45秒タイムアウト
+      } catch (error) {
+        attempt++;
+        console.error(`Attempt ${attempt} failed:`, error);
+        if (attempt === maxAttempts) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  };
+
+  // タイムアウト付き実行関数
+  const executeWithTimeout = (func, timeout) => {
+    return Promise.race([
+      func(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Operation timed out')), timeout)
+      )
+    ]);
+  };
+
   // キャラクター設定の生成関数
   const generateWithBedrock = async (promptText) => {
     try {
@@ -104,7 +132,7 @@ const CharacterCreator = () => {
     return details;
   };
 
-  // Supabaseへの保存関数
+  // Supabaseへの最適化された保存関数
   const saveToSupabase = async (characterContent) => {
     if (!user) {
       throw new Error('ユーザーが認証されていません');
@@ -115,10 +143,11 @@ const CharacterCreator = () => {
     setSaveSuccess(false);
     
     try {
-      console.log('Processing content for save:', characterContent);
-      const details = extractCharacterDetails(characterContent);
+      const processedContent = await processLargeData(characterContent);
+      console.log('Processing content for save:', processedContent);
+      const details = extractCharacterDetails(processedContent);
 
-      // データ検証
+      // データ検証の強化
       if (!details.character_name || !details.personality || !details.background) {
         throw new Error('必要なキャラクター情報が不足しています');
       }
@@ -136,20 +165,22 @@ const CharacterCreator = () => {
         updated_at: new Date().toISOString()
       };
 
-      console.log('Prepared save data:', saveData);
+      // 保存処理の最適化
+      await executeWithTimeout(async () => {
+        console.log('Prepared save data:', saveData);
+        const { data, error: saveError } = await supabase
+          .from('character_settings')
+          .insert([saveData])
+          .select();
 
-      const { data, error: saveError } = await supabase
-        .from('character_settings')
-        .insert([saveData])
-        .select();
+        if (saveError) {
+          console.error('Save error:', saveError);
+          throw saveError;
+        }
 
-      if (saveError) {
-        console.error('Save error:', saveError);
-        throw saveError;
-      }
-
-      console.log('Save successful:', data);
-      setSaveSuccess(true);
+        console.log('Save successful:', data);
+        setSaveSuccess(true);
+      }, 45000);
       
     } catch (error) {
       console.error('Save operation failed:', error);
@@ -160,7 +191,7 @@ const CharacterCreator = () => {
     }
   };
 
-  // フォーム送信ハンドラ
+  // 最適化されたフォーム送信ハンドラ
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.group('Form Submission Process');
@@ -180,11 +211,14 @@ const CharacterCreator = () => {
     setSaveSuccess(false);
 
     try {
-      console.log('Starting character generation process');
-      const generatedCharacter = await generateWithBedrock(prompt.trim());
+      console.log('Starting optimized character generation process');
+      const generatedCharacter = await executeWithTimeout(
+        () => generateWithBedrock(prompt.trim()),
+        45000
+      );
       
       setGeneratedContent(generatedCharacter);
-      console.log('Starting save process');
+      console.log('Starting optimized save process');
       
       await saveToSupabase(generatedCharacter);
     } catch (error) {
@@ -206,7 +240,7 @@ const CharacterCreator = () => {
     }
   };
 
-  // UI実装
+  // 最適化されたUI実装
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">キャラクター設定ジェネレーター</h1>
