@@ -13,26 +13,43 @@ const StoryGenerator = () => {
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // データ処理の最適化関数
+  const processLargeData = async (data, maxAttempts = 3) => {
+    let attempt = 0;
+    while (attempt < maxAttempts) {
+      try {
+        return await executeWithTimeout(async () => {
+          console.log(`Processing attempt ${attempt + 1}`);
+          return data;
+        }, 45000); // 45秒タイムアウト
+      } catch (error) {
+        attempt++;
+        console.error(`Attempt ${attempt} failed:`, error);
+        if (attempt === maxAttempts) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  };
+
+  // タイムアウト付き実行関数
+  const executeWithTimeout = (func, timeout) => {
+    return Promise.race([
+      func(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Operation timed out')), timeout)
+      )
+    ]);
+  };
+
+  // 生成関数の更新
   const generateWithBedrock = async (promptText) => {
     try {
+      console.group('Story Generation Process');
       console.log('Generating story with prompt:', promptText);
+      
       const response = await httpClient.post('/generate', {
-        prompt: `世界観設定を以下の形式で簡潔に生成してください：
-
-タイトル：[20文字以内]
-
-世界観の核：
-[この世界の最も重要な特徴を50文字以内で]
-
-主要な要素：
-- 場所：[30文字以内]
-- 文化：[30文字以内]
-- 対立：[30文字以内]
-- 特徴：[30文字以内]
-
-※すべての要素は具体的かつ簡潔に記述し、合計200文字以内に収めること。
-
-要素：${promptText}`
+        type: 'story',  // 追加：タイプの明示
+        prompt: promptText
       });
 
       if (!response.data.success) {
@@ -40,6 +57,7 @@ const StoryGenerator = () => {
       }
 
       console.log('Generated content:', response.data.data);
+      console.groupEnd();
       return response.data.data;
     } catch (error) {
       console.error('Generation error:', error);
@@ -47,7 +65,11 @@ const StoryGenerator = () => {
     }
   };
 
+  // 設定の抽出関数
   const extractSettingDetails = (content) => {
+    console.group('Data Extraction Process');
+    console.log('Raw content:', content);
+
     const sections = content.split('\n\n').filter(section => section.trim());
     let details = {
       title: '',
@@ -59,7 +81,7 @@ const StoryGenerator = () => {
       sections.forEach(section => {
         if (section.startsWith('タイトル：')) {
           details.title = section.split('：')[1].trim();
-        } else if (section.includes('世界観の核：')) {
+        } else if (section.includes('世界観：')) {
           details.summary = section.split('：')[1].trim();
         }
       });
@@ -71,48 +93,59 @@ const StoryGenerator = () => {
     }
   };
 
+  // Supabaseへの保存関数
   const saveToSupabase = async (worldBuildingContent) => {
     if (!user) {
       throw new Error('ユーザーが認証されていません');
     }
 
+    console.group('Data Save Process');
     setIsSaving(true);
     setSaveSuccess(false);
     
     try {
-      console.log('Processing content for save:', worldBuildingContent);
-      const details = extractSettingDetails(worldBuildingContent);
-      
-      const { data, error: saveError } = await supabase
-        .from('story_settings')
-        .insert([{
-          user_id: user.id,
-          title: details.title || '無題',
-          setting_prompt: prompt,
-          world_building: worldBuildingContent,
-          summary: details.summary,
-          created_at: new Date().toISOString()
-        }])
-        .select();
+      const processedContent = await processLargeData(worldBuildingContent);
+      console.log('Processing content for save:', processedContent);
+      const details = extractSettingDetails(processedContent);
 
-      if (saveError) {
-        console.error('Save error:', saveError);
-        throw saveError;
-      }
+      const saveData = {
+        user_id: user.id,
+        title: details.title || '無題',
+        setting_prompt: prompt,
+        world_building: processedContent,
+        summary: details.summary,
+        created_at: new Date().toISOString()
+      };
 
-      console.log('Settings saved successfully:', data);
-      setSaveSuccess(true);
+      await executeWithTimeout(async () => {
+        console.log('Prepared save data:', saveData);
+        const { data, error: saveError } = await supabase
+          .from('story_settings')
+          .insert([saveData])
+          .select();
+
+        if (saveError) {
+          console.error('Save error:', saveError);
+          throw saveError;
+        }
+
+        console.log('Save successful:', data);
+        setSaveSuccess(true);
+      }, 45000);
       
     } catch (error) {
       console.error('Save operation failed:', error);
       throw error;
     } finally {
       setIsSaving(false);
+      console.groupEnd();
     }
   };
 
+  // フォーム送信ハンドラ
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.group('Form Submission Process');
 
     if (!user) {
       setError('ログインが必要です');
@@ -129,18 +162,26 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
 
     try {
-      console.log('Starting story generation...');
-      const generatedWorld = await generateWithBedrock(prompt.trim());
+      console.log('Starting story generation process');
+      const generatedWorld = await executeWithTimeout(
+        () => generateWithBedrock(prompt.trim()),
+        45000
+      );
+      
       setGeneratedContent(generatedWorld);
+      console.log('Starting save process');
+      
       await saveToSupabase(generatedWorld);
     } catch (error) {
-      console.error('Generation error:', error);
+      console.error('Process failed:', error);
       setError(error.message || '設定の生成中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
+      console.groupEnd();
     }
   };
 
+  // クリア処理ハンドラ
   const handleClear = () => {
     if (window.confirm('生成された内容をクリアしてもよろしいですか？')) {
       setGeneratedContent('');

@@ -70,27 +70,8 @@ const CharacterCreator = () => {
       console.log('Processed prompt:', processedPrompt);
 
       const response = await httpClient.post('/generate', {
-        prompt: `以下の要素から、必ず指定された形式でキャラクター設定を生成してください。
-形式を厳守することが最も重要です。
-
-入力データ：
-${processedPrompt}
-
-以下の形式で出力してください（この形式は必須です）：
-
-1. 名前：[キャラクターの名前を1行で]
-2. 属性：[性別]、[年齢]歳
-3. 外見：[外見的特徴を50字以内で]
-4. 性格：[性格や価値観を80字以内で]
-5. 背景：[経歴や背景を100字以内で]
-6. 特徴：[特殊能力や際立った特徴を50字以内で]
-
-注意事項：
-- 必ず上記の番号付き形式で出力すること
-- 各項目は必須です
-- コロン（：）は全角を使用すること
-- 自由形式の文章は受け付けません
-- ストーリー形式での出力は避けること`
+        type: 'character',  // 追加：タイプの明示
+        prompt: processedPrompt
       });
 
       if (!response.data.success) {
@@ -178,7 +159,7 @@ ${processedPrompt}
     }
   };
 
-  // 最適化されたSupabase保存関数
+  // Supabaseへの保存関数
   const saveToSupabase = async (characterContent) => {
     if (!user) {
       throw new Error('ユーザーが認証されていません');
@@ -232,7 +213,7 @@ ${processedPrompt}
     }
   };
 
-  // 最適化されたフォーム送信ハンドラ
+  // フォーム送信ハンドラ
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.group('Form Submission Process');
@@ -252,14 +233,14 @@ ${processedPrompt}
     setSaveSuccess(false);
 
     try {
-      console.log('Starting optimized character generation process');
+      console.log('Starting character generation process');
       const generatedCharacter = await executeWithTimeout(
         () => generateWithBedrock(prompt.trim()),
         45000
       );
       
       setGeneratedContent(generatedCharacter);
-      console.log('Starting optimized save process');
+      console.log('Starting save process');
       
       await saveToSupabase(generatedCharacter);
     } catch (error) {
@@ -284,7 +265,7 @@ ${processedPrompt}
     }
   };
 
-  // 最適化されたUI実装
+  // UI実装
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">キャラクター設定ジェネレーター</h1>
