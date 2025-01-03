@@ -3,6 +3,7 @@ import { supabase } from '../lib/auth';
 import { useAuth } from '../lib/auth';
 import httpClient from '../lib/httpClient';
 import StoryGenerationControls from './StoryGenerationControls';
+import GenerateButton from './GenerateButton';
 
 const StoryGenerator = () => {
   const { user } = useAuth();
@@ -19,12 +20,10 @@ const StoryGenerator = () => {
     while (attempt < maxAttempts) {
       try {
         return await executeWithTimeout(async () => {
-          console.log(`Processing attempt ${attempt + 1}`);
           return data;
-        }, 45000); // 45秒タイムアウト
+        }, 45000);
       } catch (error) {
         attempt++;
-        console.error(`Attempt ${attempt} failed:`, error);
         if (attempt === maxAttempts) throw error;
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
@@ -44,11 +43,8 @@ const StoryGenerator = () => {
   // 生成関数の更新
   const generateWithBedrock = async (promptText) => {
     try {
-      console.group('Story Generation Process');
-      console.log('Generating story with prompt:', promptText);
-      
       const response = await httpClient.post('/generate', {
-        type: 'story',  // 追加：タイプの明示
+        type: 'story',
         prompt: promptText
       });
 
@@ -56,20 +52,14 @@ const StoryGenerator = () => {
         throw new Error(response.data.error || '生成に失敗しました');
       }
 
-      console.log('Generated content:', response.data.data);
-      console.groupEnd();
       return response.data.data;
     } catch (error) {
-      console.error('Generation error:', error);
       throw error;
     }
   };
 
   // 設定の抽出関数
   const extractSettingDetails = (content) => {
-    console.group('Data Extraction Process');
-    console.log('Raw content:', content);
-
     const sections = content.split('\n\n').filter(section => section.trim());
     let details = {
       title: '',
@@ -77,35 +67,26 @@ const StoryGenerator = () => {
       content: content
     };
 
-    try {
-      sections.forEach(section => {
-        if (section.startsWith('タイトル：')) {
-          details.title = section.split('：')[1].trim();
-        } else if (section.includes('世界観：')) {
-          details.summary = section.split('：')[1].trim();
-        }
-      });
+    sections.forEach(section => {
+      if (section.startsWith('設定タイトル：')) {
+        details.title = section.split('：')[1].trim();
+      } else if (section.includes('世界観：')) {
+        details.summary = section.split('：')[1].trim();
+      }
+    });
 
-      return details;
-    } catch (error) {
-      console.error('Extraction error:', error);
-      throw new Error('設定の解析に失敗しました');
-    }
+    return details;
   };
 
   // Supabaseへの保存関数
   const saveToSupabase = async (worldBuildingContent) => {
-    if (!user) {
-      throw new Error('ユーザーが認証されていません');
-    }
-
-    console.group('Data Save Process');
+    if (!user) throw new Error('ユーザーが認証されていません');
+    
     setIsSaving(true);
     setSaveSuccess(false);
     
     try {
       const processedContent = await processLargeData(worldBuildingContent);
-      console.log('Processing content for save:', processedContent);
       const details = extractSettingDetails(processedContent);
 
       const saveData = {
@@ -118,43 +99,32 @@ const StoryGenerator = () => {
       };
 
       await executeWithTimeout(async () => {
-        console.log('Prepared save data:', saveData);
-        const { data, error: saveError } = await supabase
+        const { error: saveError } = await supabase
           .from('story_settings')
           .insert([saveData])
           .select();
 
-        if (saveError) {
-          console.error('Save error:', saveError);
-          throw saveError;
-        }
-
-        console.log('Save successful:', data);
+        if (saveError) throw saveError;
         setSaveSuccess(true);
       }, 45000);
       
     } catch (error) {
-      console.error('Save operation failed:', error);
       throw error;
     } finally {
       setIsSaving(false);
-      console.groupEnd();
     }
   };
 
-  // フォーム送信ハンドラ
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.group('Form Submission Process');
-
+  // 生成ハンドラ
+  const handleGenerate = async () => {
     if (!user) {
       setError('ログインが必要です');
-      return;
+      return false;
     }
 
     if (!prompt.trim()) {
       setError('世界観・設定の要素を入力してください');
-      return;
+      return false;
     }
 
     setIsLoading(true);
@@ -162,22 +132,19 @@ const StoryGenerator = () => {
     setSaveSuccess(false);
 
     try {
-      console.log('Starting story generation process');
       const generatedWorld = await executeWithTimeout(
         () => generateWithBedrock(prompt.trim()),
         45000
       );
       
       setGeneratedContent(generatedWorld);
-      console.log('Starting save process');
-      
       await saveToSupabase(generatedWorld);
+      return true;
     } catch (error) {
-      console.error('Process failed:', error);
       setError(error.message || '設定の生成中にエラーが発生しました。もう一度お試しください。');
+      return false;
     } finally {
       setIsLoading(false);
-      console.groupEnd();
     }
   };
 
@@ -201,7 +168,7 @@ const StoryGenerator = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
         <div>
           <label htmlFor="prompt" className="block text-lg font-medium text-gray-700 mb-2">
             世界観・設定の要素
@@ -223,27 +190,12 @@ const StoryGenerator = () => {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading || isSaving || !user}
-          className="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-lg font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+        <GenerateButton
+          onClick={handleGenerate}
+          disabled={!user}
         >
-          {isLoading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              生成中...
-            </>
-          ) : isSaving ? (
-            '保存中...'
-          ) : !user ? (
-            'ログインが必要です'
-          ) : (
-            '世界観・設定を生成'
-          )}
-        </button>
+          {isLoading ? "生成中..." : !user ? "ログインが必要です" : "世界観・設定を生成"}
+        </GenerateButton>
       </form>
 
       {error && (
